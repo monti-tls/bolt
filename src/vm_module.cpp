@@ -61,8 +61,19 @@ namespace vm
         return mod.stack[--mod.registers[REG_CODE_SP]];
     }
     
-    //! Decode an operand based on its code, value and indirection bit.
-    static uint32_t* decode_operand(module& mod, uint32_t code, uint32_t val, bool ind)
+    //! Resolve an operand based on its code, value and indirection bit.
+    //! Resolving imply following eventual indirections.
+    //! An operand can have the following forms :
+    //!   reg:          register value
+    //!   #imm:         immediate value
+    //!   [reg]:        register addressing
+    //!   [#imm]:       immediate addressing
+    //!   [reg+-#off]:  register addressing plus immediate offset
+    //!   [#imm+-#off]: immediate addressing plus immediate offset (useless but allowed)
+    //! All of them (including immediate values) are writable.
+    //! Writing to an immediate operand will modify its value in the program memory.
+    //! The offset bit is ignored if the indirection bit is not set.
+    static uint32_t* resolve_operand(module& mod, uint32_t code, uint32_t val, bool ind, bool off)
     {
         switch (code)
         {
@@ -74,17 +85,31 @@ namespace vm
                 if (val >= REG_COUNT)
                     return 0;
                 
+                // Get the register address
                 uint32_t* addr = mod.registers + val;
-                if (addr && ind)
+                // Follow indirection if needed
+                if (ind)
+                {
+                    // Add immediate offset if needed
+                    if (off)
+                        return mem_access(mod, *addr + *((int32_t*) fetch_word(mod)));
                     return mem_access(mod, *addr);
+                }
                 return addr;
             }
                 
             case OP_CODE_IMM:
             {
+                // Get the immediate operand address
                 uint32_t* addr = fetch_word(mod);
-                if (addr && ind)
+                // Follow indirection if needed
+                if (ind)
+                {
+                    // Add immediate offset if needed
+                    if (off)
+                        return mem_access(mod, *addr + *((int32_t*) fetch_word(mod)));
                     return mem_access(mod, *addr);
+                }
                 return addr;
             }
                 
@@ -98,12 +123,16 @@ namespace vm
     {
         uint32_t instr = mod.registers[REG_CODE_IR];
         
-        // Read in operand code and indirection bit
+        // Read in operand code
         uint32_t code = (instr & OP_A_CODE) >> OP_A_CODE_SHIFT;
+        // Read operand value
         uint32_t val = (instr & OP_A_VAL) >> OP_A_VAL_SHIFT;
+        // Read indirection bit
         bool ind = instr & OP_A_IND;
+        // Read offset bit
+        bool off = instr & OP_A_OFF;
         
-        return decode_operand(mod, code, val, ind);
+        return resolve_operand(mod, code, val, ind, off);
     }
     
     //! Decode the B operand.
@@ -111,17 +140,22 @@ namespace vm
     {
         uint32_t instr = mod.registers[REG_CODE_IR];
         
-        // Read in operand code and indirection bit
+        // Read in operand code
         uint32_t code = (instr & OP_B_CODE) >> OP_B_CODE_SHIFT;
+        // Read operand value
         uint32_t val = (instr & OP_B_VAL) >> OP_B_VAL_SHIFT;
+        // Read indirection bit
         bool ind = instr & OP_B_IND;
+        // Read offset bit
+        bool off = instr & OP_B_OFF;
         
-        return decode_operand(mod, code, val, ind);
+        return resolve_operand(mod, code, val, ind, off);
     }
     
     //! Fetch the next instruction form the module's program memory.
     static uint32_t fetch(module& mod)
     {
+        // Instructions are single-word
         return (mod.registers[REG_CODE_IR] = *fetch_word(mod));
     }
     
@@ -167,7 +201,10 @@ namespace vm
                 if (mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
                     std::cout << " Z";
                 std::cout << std::endl;
-                std::cout << "RV:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_RV] << std::endl;
+                std::cout << "RV:  ";
+                std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_RV];
+                std::cout << " (I " << std::dec << *((int32_t*) &mod.registers[REG_CODE_RV]) << ")";
+                std::cout << " (F " << *((float*) &mod.registers[REG_CODE_RV]) << ")" << std::endl;
                 std::cout << "AB:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_AB] << std::endl;
                 std::cout << "---------------" << std::endl;
                 break;
@@ -252,7 +289,6 @@ namespace vm
                 stack_push(mod, mod.registers[REG_CODE_PC]);
                 
                 mod.registers[REG_CODE_AB] = args_base;
-                
                 mod.registers[REG_CODE_PC] = *target;
                 break;
             }
@@ -309,13 +345,16 @@ namespace vm
     //! Execute an instruction from the ARITH group.
     static void execute_arith(module& mod, uint32_t icode)
     {
+        //! Unsigned integer operands.
         uint32_t u_rhs = stack_pop(mod);
         uint32_t u_lhs = stack_pop(mod);
         
+        //! Just in case, we cast here operands to signed integers.
         int32_t i_rhs = *((int32_t*) &u_rhs);
         int32_t i_lhs = *((int32_t*) &u_lhs);
         int32_t i_ret;
         
+        //! Same for floating-point values.
         float f_rhs = *((float*) &u_rhs);
         float f_lhs = *((float*) &u_lhs);
         float f_ret;

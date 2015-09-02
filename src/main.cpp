@@ -8,10 +8,15 @@
 #define A(code, val) \
     ( (OP_CODE_ ## code << OP_A_CODE_SHIFT) \
     | ((val) << OP_A_VAL_SHIFT))
-#define Ai(code, val) \
+    #define Ai(code, val) \
     ( (OP_CODE_ ## code << OP_A_CODE_SHIFT) \
     | (OP_A_IND) \
     | ((val) << OP_A_VAL_SHIFT))
+#define Aio(code, val) \
+    ( (OP_CODE_ ## code << OP_A_CODE_SHIFT) \
+    | (OP_A_IND) \
+    | ((val) << OP_A_VAL_SHIFT) \
+    | (OP_A_OFF))
 #define B(code, val) \
     ( (OP_CODE_ ## code << OP_B_CODE_SHIFT) \
     | ((val) << OP_B_VAL_SHIFT))
@@ -19,6 +24,11 @@
     ( (OP_CODE_ ## code << OP_B_CODE_SHIFT) \
     | (OP_B_IND) \
     | ((val) << OP_B_VAL_SHIFT))
+#define Bio(code, val) \
+    ( (OP_CODE_ ## code << OP_B_CODE_SHIFT) \
+    | (OP_B_IND) \
+    | ((val) << OP_B_VAL_SHIFT) \
+    | (OP_B_OFF))
 
 int main()
 {

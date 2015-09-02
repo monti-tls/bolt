@@ -21,24 +21,66 @@
 
 namespace vm
 {
-    //!FIXME: We must use enum : uint32_t that is, a C++11's feature :(
+    //!FIXME: We must use "enum : uint32_t" that is, a C++11's feature :(
     //!         because some constants do not fit in a signed int, and GCC messes
     //!         them up when using instruction crafting macros.
     //!       I hope this is a temporary issue !
     
-    //! Instructions are 32-bits wide, and can take up to two operands.
-    //! The instruction code (IC) is 10-bits with a 3-bits group field (IC.G).
-    //! Operand values are 8-bits (A, B).
-    //! They have a 2-bit code flag (register and immediate at the time, {A, B}.C),
-    //!   and an indirection bit ({A, B}.I).
+    //! The bolt instruction set is rather simple.
+    //! An instruction is made up of an operation code,
+    //!   and zero, one or two operands.
+    //! The bolt VM is 32-bits in nature and so words (and instructions) are 32-bits wide.
+    //! The operands can have the following form :
+    //!   register (reg)
+    //!   immediate value (#imm)
+    //! Each immediate value is encoded as a supplementary word after the instruction code,
+    //!   and register numbers are encoded in the instruction code itself.
+    //! One can use indirections in the operand, meaning that the value is interpreted as
+    //!   a memory address, we note :
+    //!   [reg] or [#imm]
+    //! An immediate offset can be added (this sets the off bit) :
+    //!   [reg+#imm]
+    
+    //! Here are the bit fields in the 32-bit instruction word :
     //!
-    //! Immediate values are stored as 32-bits words after the instruction (if any).
+    //! +32           +24             +16              +8              +0
+    //!   7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0 7 6 5 4 3 2 1 0
+    //!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    //!  |     |             |I|O| C |             |I|O| C |             |
+    //!  |GROUP|    CODE     |N|F| O |    VALUE    |N|F| O |    VALUE    |
+    //!  |     |             |D|F| D |             |D|F| D |             |
+    //!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    
+    //! Instructions are splitted into groups :
+    //!   SYS: the system group:
+    //!            HALT: halt the virtual core
+    //!            RST:  reset the virtual core
+    //!            DMS:  dump the current stack contents
+    //!            DMR:  dump the current register contents
     //!
-    //! 31-29 28-22 21 20-19 18-11 10 9-8 7-0
-    //! <---> <---> <> <---> <---> <> <-> <->
-    //!   G   code  I    C    val  I   C  val
-    //! <---------> <------------> <-------->
-    //!     IC            A            B
+    //!   MEM:  the memory group:
+    //!            PUSH <A>:      push A to the stack
+    //!            POP  <A>:      pop A from the stack
+    //!            MOV  <A>, <B>: move B's value to A
+    //!
+    //!   FLOW: the program flow control group:
+    //!            CALL <A>: call the function starting at A's address
+    //!            RET:      return from the current function
+    //!            JMP  <A>: go to A's address
+    //!            JZ   <A>: jump to A if the Z flag is set in PSR
+    //!            JNZ  <A>: jump to A if the Z flag is not set in PSR
+    //!
+    //!            JE, JNE, JL, JLE, JG, JGE behaves similarly
+    //!
+    //!   ARITH: the arithmetics group:
+    //!            UADD: pops off two unsigned integers from the stacks and pushes their addition
+    //!            USUB: " " subtraction
+    //!            UMUL: " " multiplication
+    //!            UDIV: " " division
+    //!            UCMP: compared the two popped values (as unsigneds) and updates PSR accordingly
+    //!
+    //!            IADD, ISUB, ... behaves similarly for signed integers
+    //!            FADD, FSUB, ..., "" single-precision floatings
     
     //! To get the operand code from an encoded instruction, do :
     //!   opcode = (instr & OP_x_CODE) >> OP_x_CODE_SHIFT
@@ -46,6 +88,10 @@ namespace vm
     //!
     //! To read the indirection bit, do :
     //!   bit = instr & OP_x_IND.
+    //!   Then compare with 0.
+    //!
+    //! To read the offset bit, do :
+    //!   bit = instr & OP_x_OFF.
     //!   Then compare with 0.
     //!
     //! To read the value, do :
@@ -57,19 +103,21 @@ namespace vm
         OP_CODE_REG     = 0x1,
         OP_CODE_IMM     = 0x2,
         
-        //! Operand A code & indirection bit masks and shifts.
-        OP_A_CODE       = 0x00180000, // bits 19-20
-        OP_A_CODE_SHIFT = 0x13, // 19 bits
+        //! Operand B code & indirection and offset bit masks and shifts.
         OP_A_IND        = 0x00200000, // bit 21
-        OP_A_VAL        = 0x0007F800, // bits 11-18
+        OP_A_OFF        = 0x00100000, // bit 20
+        OP_A_CODE       = 0x000C0000, // bits 18-19
+        OP_A_CODE_SHIFT = 0x12, // 18 bits
+        OP_A_VAL        = 0x0003F800, // bits 11-17
         OP_A_VAL_SHIFT  = 0x0B, // 11 bits
         
-        //! Operand B code & indirection bit masks and shifts.
-        OP_B_CODE       = 0x00000300, // bits 8-9
-        OP_B_CODE_SHIFT = 0x08, // 8 bits
-        OP_B_IND        = 0x00000400,  // bit 10
-        OP_B_VAL        = 0x0000000F, // bits 7-0
-        OP_B_VAL_SHIFT  = 0x00, // 0 bits
+        //! Operand B code & indirection and offset bit masks and shifts.
+        OP_B_IND        = 0x00000400, // bit 10
+        OP_B_OFF        = 0x00000200, // bit 9
+        OP_B_CODE       = 0x00000180, // bits 7-8
+        OP_B_CODE_SHIFT = 0x07, // 7 bits
+        OP_B_VAL        = 0x0000007F, // bits 0-6
+        OP_B_VAL_SHIFT  = 0x00 // 0 bits
     };
     
     //! To retrieve the instruction code from an encoded instruction, do :
