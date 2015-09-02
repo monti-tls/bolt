@@ -16,49 +16,53 @@
 
 #include "vm_module.h"
 #include <stdexcept>
+#include <iostream>
+#include <iomanip>
 
 namespace vm
 {
+    /**************************************/
+    /*** Private implementation section ***/
+    /**************************************/
+    
     //! Fetch a word from the module's program memory.
-    uint32_t* fetch_word(module& mod)
+    static uint32_t* fetch_word(module& mod)
     {
-        // error !
-        if (mod.registers[RC_PC] >= mod.programSize)
-            return 0;
+        if (mod.registers[REG_CODE_PC] >= mod.header.program_size)
+            throw std::runtime_error("vm::fetch_word: PC out of bounds");
         
-        return mod.program + mod.registers[RC_PC]++;
+        return mod.program + mod.registers[REG_CODE_PC]++;
     }
     
     //! Access the module's memory at the given address.
-    uint32_t* mem_access(module& mod, uint32_t addr)
+    static uint32_t* mem_access(module& mod, uint32_t addr)
     {
-        // error !
-        if (addr > mod.stackSize)
-            return 0;
+        if (addr > mod.header.stack_size)
+            throw std::runtime_error("vm::mem_access: address out of bounds");
         
         return mod.stack + addr;
     }
     
     //! Push a value onto the module's stack.
-    void stack_push(module& mod, uint32_t value)
+    static void stack_push(module& mod, uint32_t value)
     {
-        if (mod.registers[RC_SP] >= mod.stackSize)
-        {} // error !
+        if (mod.registers[REG_CODE_SP] >= mod.header.stack_size)
+            throw std::runtime_error("vm::stack_push: stack overflow :(");
         
-        mod.stack[mod.registers[RC_SP]++] = value;
+        mod.stack[mod.registers[REG_CODE_SP]++] = value;
     }
     
     //! Pop a value from the module's stack.
-    uint32_t stack_pop(module& mod)
+    static uint32_t stack_pop(module& mod)
     {
-        if (mod.registers[RC_SP] == 0)
-        {} // error !
+        if (mod.registers[REG_CODE_SP] == 0)
+            throw std::runtime_error("vm::stack_pop: stack underflow :(");
             
-        return mod.stack[--mod.registers[RC_SP]];
+        return mod.stack[--mod.registers[REG_CODE_SP]];
     }
     
     //! Decode an operand based on its code, value and indirection bit.
-    uint32_t* decode_operand(module& mod, uint32_t code, uint32_t val, bool ind)
+    static uint32_t* decode_operand(module& mod, uint32_t code, uint32_t val, bool ind)
     {
         switch (code)
         {
@@ -67,7 +71,7 @@ namespace vm
                 
             case OP_CODE_REG:
             {
-                if (val >= RC_SIZE)
+                if (val >= REG_COUNT)
                     return 0;
                 
                 uint32_t* addr = mod.registers + val;
@@ -85,15 +89,14 @@ namespace vm
             }
                 
             default:
-                // error !
-                return 0;
+                throw std::logic_error("vm::decode_operand: invalid operand code");
         }
     }
     
     //! Decode the A operand.
-    uint32_t* decode_A(module& mod)
+    static uint32_t* decode_A(module& mod)
     {
-        uint32_t instr = mod.registers[RC_IR];
+        uint32_t instr = mod.registers[REG_CODE_IR];
         
         // Read in operand code and indirection bit
         uint32_t code = (instr & OP_A_CODE) >> OP_A_CODE_SHIFT;
@@ -104,9 +107,9 @@ namespace vm
     }
     
     //! Decode the B operand.
-    uint32_t* decode_B(module& mod)
+    static uint32_t* decode_B(module& mod)
     {
-        uint32_t instr = mod.registers[RC_IR];
+        uint32_t instr = mod.registers[REG_CODE_IR];
         
         // Read in operand code and indirection bit
         uint32_t code = (instr & OP_B_CODE) >> OP_B_CODE_SHIFT;
@@ -116,90 +119,293 @@ namespace vm
         return decode_operand(mod, code, val, ind);
     }
     
-    //! Decode the sA operand (A as signed integer).
-    int32_t* decode_sA(module& mod)
+    //! Fetch the next instruction form the module's program memory.
+    static uint32_t fetch(module& mod)
     {
-        return (int32_t*) decode_A(mod);
+        return (mod.registers[REG_CODE_IR] = *fetch_word(mod));
     }
     
-    //! Fetch the next instruction form the module's program memory.
-    uint32_t fetch(module& mod)
+    //! Execute an instruction from the SYS group.
+    static void execute_sys(module& mod, uint32_t icode)
     {
-        uint32_t* addr = fetch_word(mod);
-        if (!addr)
-            return 0;
-        
-        return (mod.registers[RC_IR] = *addr);
+        switch (icode)
+        {
+            case I_CODE_HALT:
+                mod.registers[REG_CODE_PSR] |= PSR_FLAG_HALT;
+                break;
+                
+            case I_CODE_RST:
+                module_reset(mod);
+                break;
+                
+            case I_CODE_DMS:
+                std::cout << "Stack dump :" << std::endl;
+                if (mod.registers[REG_CODE_SP] >= mod.header.stack_size)
+                {
+                    std::cout << "<corrupted SP>" << std::endl;
+                    break;
+                }
+                for (uint32_t i = 0; i < mod.registers[REG_CODE_SP]; ++i)
+                {
+                    std::cout << "[" << std::hex << std::setw(8) << std::setfill('0') << i << "] ";
+                    std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << mod.stack[i];
+                    std::cout << " (I " << std::dec << *((int32_t*) &mod.stack[i]) << ")";
+                    std::cout << " (F " << *((float*) &mod.stack[i]) << ")" << std::endl;
+                }
+                std::cout << "------------" << std::endl;
+                break;
+                
+            case I_CODE_DMR:
+                std::cout << "Register dump :" << std::endl;
+                std::cout << "PC:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_PC] << std::endl;
+                std::cout << "SP:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_SP] << std::endl;
+                std::cout << "PSR: 0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_PSR];
+                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_HALT)
+                    std::cout << " HALT";
+                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N)
+                    std::cout << " N";
+                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                    std::cout << " Z";
+                std::cout << std::endl;
+                std::cout << "RV:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_RV] << std::endl;
+                std::cout << "AB:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_AB] << std::endl;
+                std::cout << "---------------" << std::endl;
+                break;
+                
+            default:
+                throw std::logic_error("vm::execute_sys: invalid instruction code");
+        }
     }
     
     //! Execute an instruction from the MEM group.
-    void execute_mem(module& mod, uint32_t icode)
+    static void execute_mem(module& mod, uint32_t icode)
     {
         switch (icode)
         {
             case I_CODE_PUSH:
                 stack_push(mod, *decode_A(mod));
                 break;
-            
+                
             case I_CODE_POP:
-                *decode_A(mod) = stack_pop(mod);
+            {
+                // We allow POP's without operands so check
+                //   before dereferencing A !
+                uint32_t* target = decode_A(mod);
+                uint32_t value = stack_pop(mod);
+                if (target)
+                    *target = value;
                 break;
+            }
                 
             case I_CODE_MOV:
                 *decode_A(mod) = *decode_B(mod);
                 break;
-            
+                
             default:
-                // error !
+                throw std::logic_error("vm::execute_mem: invalid instruction code");
+        }
+    }
+    
+    static void execute_flow(module& mod, uint32_t icode)
+    {
+        // Be careful to decode the operands right now,
+        //   because if A is an immediate value, we will save a bad PC,
+        //   as we will save it before reading the additional word.
+        // Don't dereference it now because for RET it is null.
+        uint32_t* target = decode_A(mod);
+        
+        switch (icode)
+        {
+            //! Here is the calling convention's ABI.
+            //! The caller is responsible for pushing the arguments
+            //!   on the stack before CALLing.
+            //! They must be pushed right to left.
+            //! The caller is responsible for cleaning up the stack after the callee
+            //!   has returned.
+            //! The caller must save the RV register itself if needed.
+            //! The return value can be written in the special register RV.
+            //! Stack frame when calling :
+            //!
+            //! +--------+
+            //! |  ARGn  |
+            //! +--------+
+            //! |  ....  |
+            //! +--------+
+            //! |  ARG0  |
+            //! +--------+
+            //! |  AB    |
+            //! +--------+
+            //! |  PSR   |
+            //! +--------+
+            //! |   PC   |
+            //! +--------+ <--- top of the stack
+            //!
+            case I_CODE_CALL:
+            {
+                // Because we use post-incrementation stack addressing,
+                //   SP is actually just over the top, so we must save SP-1
+                //   to get the argument base address.
+                uint32_t args_base = mod.registers[REG_CODE_SP] - 1;
+                
+                stack_push(mod, mod.registers[REG_CODE_AB]);
+                stack_push(mod, mod.registers[REG_CODE_PSR]);
+                stack_push(mod, mod.registers[REG_CODE_PC]);
+                
+                mod.registers[REG_CODE_AB] = args_base;
+                
+                mod.registers[REG_CODE_PC] = *target;
                 break;
+            }
+                
+            case I_CODE_RET:
+                mod.registers[REG_CODE_PC] = stack_pop(mod);
+                mod.registers[REG_CODE_PSR] = stack_pop(mod);
+                mod.registers[REG_CODE_AB] = stack_pop(mod);
+                break;
+                
+            case I_CODE_JMP:
+                mod.registers[REG_CODE_PC] = *target;
+                break;
+                
+            case I_CODE_JZ:
+            case I_CODE_JE:
+                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                    mod.registers[REG_CODE_PC] = *target;
+                break;
+                
+            case I_CODE_JNZ:
+            case I_CODE_JNE:
+                if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_Z))
+                    mod.registers[REG_CODE_PC] = *target;
+                break;
+                
+            case I_CODE_JL:
+                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N)
+                    mod.registers[REG_CODE_PC] = *target;
+                break;
+                
+            case I_CODE_JLE:
+                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N ||
+                    mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                    mod.registers[REG_CODE_PC] = *target;
+                break;
+                
+            case I_CODE_JG:
+                if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_N))
+                    mod.registers[REG_CODE_PC] = *target;
+                break;
+                
+            case I_CODE_JGE:
+                if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_N) ||
+                    mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                    mod.registers[REG_CODE_PC] = *target;
+                break;
+                
+            default:
+                throw std::logic_error("vm::execute_flow: invalid instruction code");
         }
     }
     
     //! Execute an instruction from the ARITH group.
-    void execute_arith(module& mod, uint32_t icode)
+    static void execute_arith(module& mod, uint32_t icode)
     {
+        uint32_t u_rhs = stack_pop(mod);
+        uint32_t u_lhs = stack_pop(mod);
+        
+        int32_t i_rhs = *((int32_t*) &u_rhs);
+        int32_t i_lhs = *((int32_t*) &u_lhs);
+        int32_t i_ret;
+        
+        float f_rhs = *((float*) &u_rhs);
+        float f_lhs = *((float*) &u_lhs);
+        float f_ret;
+        
         switch (icode)
         {
             case I_CODE_UADD:
-            {
-                uint32_t rhs = stack_pop(mod);
-                uint32_t lhs = stack_pop(mod);
-                stack_push(mod, lhs + rhs);
+                stack_push(mod, u_lhs + u_rhs);
                 break;
-            }
                 
             case I_CODE_USUB:
-            {
-                uint32_t rhs = stack_pop(mod);
-                uint32_t lhs = stack_pop(mod);
-                stack_push(mod, lhs - rhs);
+                stack_push(mod, u_lhs - u_rhs);
                 break;
-            }
                 
             case I_CODE_UMUL:
-            {
-                uint32_t rhs = stack_pop(mod);
-                uint32_t lhs = stack_pop(mod);
-                stack_push(mod, lhs * rhs);
+                stack_push(mod, u_lhs * u_rhs);
                 break;
-            }
                 
             case I_CODE_UDIV:
-            {
-                uint32_t rhs = stack_pop(mod);
-                uint32_t lhs = stack_pop(mod);
-                stack_push(mod, lhs - rhs);
+                stack_push(mod, u_lhs / u_rhs);
                 break;
-            }
+            
+            case I_CODE_UCMP:
+                if (u_rhs < u_lhs)
+                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_N;
+                if (u_rhs == u_lhs)
+                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
+                break;
+                
+            case I_CODE_IADD:
+                i_ret = i_lhs + i_rhs;
+                stack_push(mod, *((uint32_t*) &i_ret));
+                break;
+                
+            case I_CODE_ISUB:
+                i_ret = i_lhs - i_rhs;
+                stack_push(mod, *((uint32_t*) &i_ret));
+                break;
+                
+            case I_CODE_IMUL:
+                i_ret = i_lhs * i_rhs;
+                stack_push(mod, *((uint32_t*) &i_ret));
+                break;
+                
+            case I_CODE_IDIV:
+                i_ret = i_lhs / i_rhs;
+                stack_push(mod, *((uint32_t*) &i_ret));
+                break;
+                
+            case I_CODE_ICMP:
+                if (i_rhs < i_lhs)
+                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_N;
+                if (i_rhs == i_lhs)
+                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
+                break;
+                
+            case I_CODE_FADD:
+                f_ret = f_lhs + f_rhs;
+                stack_push(mod, *((uint32_t*) &f_ret));
+                break;
+                
+            case I_CODE_FSUB:
+                f_ret = f_lhs - f_rhs;
+                stack_push(mod, *((uint32_t*) &f_ret));
+                break;
+                
+            case I_CODE_FMUL:
+                f_ret = f_lhs * f_rhs;
+                stack_push(mod, *((uint32_t*) &f_ret));
+                break;
+                
+            case I_CODE_FDIV:
+                f_ret = f_lhs / f_rhs;
+                stack_push(mod, *((uint32_t*) &f_ret));
+                break;
+                
+            case I_CODE_FCMP:
+                if (f_rhs < f_lhs)
+                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_N;
+                if (f_rhs == f_lhs)
+                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
+                break;
                 
             default:
-                // error !
-                break;
+                throw std::logic_error("vm::execute_arith: invalid instruction code");
         }
     }
     
     //! Execute the next instruction.
-    bool execute(module& mod)
+    static void execute(module& mod)
     {
         uint32_t instr = fetch(mod);
         
@@ -209,12 +415,15 @@ namespace vm
         switch (igroup)
         {
             case I_GROUP_SYS:
-                if (icode == I_CODE_HALT)
-                    return false;
+                execute_sys(mod, icode);
                 break;
                 
             case I_GROUP_MEM:
                 execute_mem(mod, icode);
+                break;
+                
+            case I_GROUP_FLOW:
+                execute_flow(mod, icode);
                 break;
                 
             case I_GROUP_ARITH:
@@ -222,16 +431,51 @@ namespace vm
                 break;
             
             default:
-                // error !
-                break;
+                throw std::logic_error("vm::execute: invalid instruction group");
         }
-        
-        return true;
     }
     
-    //! Run until a HALT instruction is reached.
-    void run(module& mod)
+    /*************************/
+    /*** Public module API ***/
+    /*************************/
+    
+    module module_create(uint32_t stack_size)
     {
-        for (; execute(mod); );
+        module mod;
+        mod.header.stack_size = stack_size;
+        mod.stack = new uint32_t[stack_size];
+        
+        mod.header.program_size = 0;
+        mod.header.entry = 0;
+        mod.program = 0;
+        
+        return mod;
+    }
+    
+    void module_free(module& mod)
+    {
+        if (mod.stack)
+            delete[] mod.stack;
+        
+        mod.stack = 0;
+        mod.header.stack_size = 0;
+    }
+    
+    void module_reset(module& mod)
+    {
+        mod.registers[REG_CODE_PC] = mod.header.entry;
+        mod.registers[REG_CODE_SP] = 0;
+        mod.registers[REG_CODE_PSR] = PSR_FLAG_NONE;
+    }
+    
+    void module_run(module& mod)
+    {
+        while (mod.registers[REG_CODE_PC] < mod.header.program_size &&
+               !(mod.registers[REG_CODE_PSR] & PSR_FLAG_HALT))
+        {
+            execute(mod);
+        }
+        
+        mod.registers[REG_CODE_PSR] |= PSR_FLAG_HALT;
     }
 }

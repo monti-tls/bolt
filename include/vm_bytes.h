@@ -21,6 +21,11 @@
 
 namespace vm
 {
+    //!FIXME: We must use enum : uint32_t that is, a C++11's feature :(
+    //!         because some constants do not fit in a signed int, and GCC messes
+    //!         them up when using instruction crafting macros.
+    //!       I hope this is a temporary issue !
+    
     //! Instructions are 32-bits wide, and can take up to two operands.
     //! The instruction code (IC) is 10-bits with a 3-bits group field (IC.G).
     //! Operand values are 8-bits (A, B).
@@ -45,7 +50,7 @@ namespace vm
     //!
     //! To read the value, do :
     //!   val = (instr & OP_x_VAL) >> OP_x_SHIFT
-    enum
+    enum : uint32_t
     {
         //! Operand code values.
         OP_CODE_NONE    = 0x0,
@@ -70,7 +75,7 @@ namespace vm
     //! To retrieve the instruction code from an encoded instruction, do :
     //!   icode = (instr & I_CODE_MASK) >> I_CODE_SHIFT
     //! Then compare with I_CODE_*.
-    enum
+    enum : uint32_t
     {
         //! Instruction code mask.
         I_CODE_MASK = 0xFFC00000, // bits 22-31
@@ -82,13 +87,13 @@ namespace vm
     //! To get the group for an instruction, take the instruction code (see above), then do :
     //!   igroup = (icode & I_GROUP_MASK) >> I_GROUP_SHIFT;
     //!   Then compare with I_GROUP_*.
-    enum
+    enum : uint32_t
     {
         //! Instruction group values.
         I_GROUP_SYS   = 0x01,
         I_GROUP_MEM   = 0x02,
-        I_GROUP_ARITH = 0x03,
-        I_GROUP_FLOW  = 0x04,
+        I_GROUP_FLOW  = 0x03,
+        I_GROUP_ARITH = 0x04,
         
         //! Instruction group mask.
         I_GROUP_MASK  = 0x0380,
@@ -99,22 +104,44 @@ namespace vm
     #define DECL_INSTR(group, name, offset) \
         I_CODE_ ## name = ((I_GROUP_ ## group << I_GROUP_SHIFT) + (offset))
     
-    enum
+    enum : uint32_t
     {
         DECL_INSTR(SYS,   HALT, 0x01),
+        DECL_INSTR(SYS,   RST,  0x02),
+        DECL_INSTR(SYS,   DMS,  0x03),
+        DECL_INSTR(SYS,   DMR,  0x04),
         
         DECL_INSTR(MEM,   PUSH, 0x01),
         DECL_INSTR(MEM,   POP,  0x02),
         DECL_INSTR(MEM,   MOV,  0x03),
         
+        DECL_INSTR(FLOW,  CALL, 0x01),
+        DECL_INSTR(FLOW,  RET,  0x02),
+        DECL_INSTR(FLOW,  JMP,  0x03),
+        DECL_INSTR(FLOW,  JZ,   0x04),
+        DECL_INSTR(FLOW,  JNZ,  0x05),
+        DECL_INSTR(FLOW,  JE,   0x06),
+        DECL_INSTR(FLOW,  JNE,  0x07),
+        DECL_INSTR(FLOW,  JL,   0x08),
+        DECL_INSTR(FLOW,  JLE,  0x09),
+        DECL_INSTR(FLOW,  JG,   0x0A),
+        DECL_INSTR(FLOW,  JGE,  0x0B),
+        
         DECL_INSTR(ARITH, UADD, 0x01),
         DECL_INSTR(ARITH, USUB, 0x02),
         DECL_INSTR(ARITH, UMUL, 0x03),
         DECL_INSTR(ARITH, UDIV, 0x04),
-        
-        DECL_INSTR(FLOW,  JMP,  0x01),
-        DECL_INSTR(FLOW,  JZ,   0x02),
-        DECL_INSTR(FLOW,  JNZ,  0x02),
+        DECL_INSTR(ARITH, UCMP, 0x05),
+        DECL_INSTR(ARITH, IADD, 0x06),
+        DECL_INSTR(ARITH, ISUB, 0x07),
+        DECL_INSTR(ARITH, IMUL, 0x08),
+        DECL_INSTR(ARITH, IDIV, 0x09),
+        DECL_INSTR(ARITH, ICMP, 0x0A),
+        DECL_INSTR(ARITH, FADD, 0x0B),
+        DECL_INSTR(ARITH, FSUB, 0x0C),
+        DECL_INSTR(ARITH, FMUL, 0x0D),
+        DECL_INSTR(ARITH, FDIV, 0x0E),
+        DECL_INSTR(ARITH, FCMP, 0x0F)
     };
     
     #undef DECL_INSTR

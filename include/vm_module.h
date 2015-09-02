@@ -27,41 +27,63 @@ namespace vm
     //! PC:  program counter
     //! SP:  stack pointer
     //! PSR: program status register
-    enum rcode
+    //! RV:  return value register
+    //! AB:  arguments base register
+    enum : uint32_t
     {
-        RC_IR   = 0x00,
-        RC_PC   = 0x01,
-        RC_SP   = 0x02,
-        RC_PSR  = 0x03,
+        REG_CODE_IR   = 0x00,
+        REG_CODE_PC   = 0x01,
+        REG_CODE_SP   = 0x02,
+        REG_CODE_PSR  = 0x03,
+        REG_CODE_RV   = 0x04,
+        REG_CODE_AB   = 0x05,
         
-        RC_SIZE
+        REG_COUNT
     };
     
     //! PSR register flags.
     //!
-    //! Z: zero flag
-    //! N: negative (or less) flag
-    enum psrflag
+    //! HALT: set to 1 if VM halted
+    //! Z:    zero flag
+    //! N:    negative (or less) flag
+    enum : uint32_t
     {
-        PSRF_NONE = 0x00000000,
+        PSR_FLAG_NONE = 0x00000000,
         
-        PSRF_Z    = 0x00000001,
-        PSRF_N    = 0x00000002
+        PSR_FLAG_HALT = 0x80000000,
+        PSR_FLAG_Z    = 0x00000001,
+        PSR_FLAG_N    = 0x00000002
     };
     
     struct module
     {
-        uint32_t registers[RC_SIZE];
+        struct
+        {
+            uint32_t stack_size;
+            uint32_t program_size;
+            
+            uint32_t entry;
+        } header;
+        
+        uint32_t registers[REG_COUNT];
         
         uint32_t* stack;
-        uint32_t stackSize;
-        
         uint32_t* program;
-        uint32_t programSize;
     };
     
-    //! Run until a HALT instruction is reached.
-    void run(module& mod);
+    //! Create a virtual core.
+    //! Note that you are responsible of initializing (and freeing) the
+    //!   header.program_size, header.entry and program fields.
+    module module_create(uint32_t stack_size);
+    
+    //! Delete a virtual core.
+    void module_free(module& mod);
+    
+    //! Reset a virtual core.
+    void module_reset(module& mod);
+    
+    //! Run until the end of the program (or the core halted).
+    void module_run(module& mod);
 }
 
 #endif // BOLT_VM_MODULE_H
