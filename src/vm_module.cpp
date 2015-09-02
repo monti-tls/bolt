@@ -256,25 +256,26 @@ namespace vm
             //! Here is the calling convention's ABI.
             //! The caller is responsible for pushing the arguments
             //!   on the stack before CALLing.
-            //! They must be pushed right to left.
+            //! They must be pushed left to right.
+            //! They can be accessed by a [AB+#imm] operand.
             //! The caller is responsible for cleaning up the stack after the callee
             //!   has returned.
-            //! The caller must save the RV register itself if needed.
             //! The return value can be written in the special register RV.
+            //! The caller must save the RV register itself if needed.
             //! Stack frame when calling :
             //!
             //! +--------+
-            //! |  ARGn  |
+            //! |  ARG0  |
             //! +--------+
             //! |  ....  |
             //! +--------+
-            //! |  ARG0  |
+            //! |  ARGn  |
             //! +--------+
             //! |  AB    |
             //! +--------+
             //! |  PSR   |
             //! +--------+
-            //! |   PC   |
+            //! |  PC    |
             //! +--------+ <--- top of the stack
             //!
             case I_CODE_CALL:
