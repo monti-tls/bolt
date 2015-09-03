@@ -150,21 +150,26 @@ int main()
     using namespace as;
     
     std::ifstream fs("sample.bas", std::ios::in);
-    Lexer lex(fs);
     
-    Token tok;
-    while (lex.seek().type() != Token::Eof)
+    lexer lex = lexer_create(fs);
+    
+    token tok;
+    while (lexer_seekt(lex) != TOKEN_EOF)
     {
-        tok = lex.get();
+        tok = lexer_get(lex);
         
-        if (tok.type() == Token::Bad)
+        if (tok.type == TOKEN_BAD)
         {
             std::cout << "BAD" << std::endl;
             break;
         }
         else
         {
-            std::cout << "[" << tok.type() << "] = (" << tok.value() << ")" << std::endl;
+            std::cout << "[" << tok.type << "] = (" << tok.value << ")" << std::endl;
         }
-    };
+    }
+    
+    lexer_free(lex);
+    
+    return 0;
 }

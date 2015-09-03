@@ -21,42 +21,32 @@
 
 namespace as
 {
-    class Token
+    enum : uint32_t
     {
-    public:
-        enum Type
-        {
-            Eof,
-            Bad,
-            Directive,
-            Identifier,
-            Label,
-            Register,
-            Immediate,
-            LeftBracket,
-            RightBracket,
-            Offset,
-            Comma
-        };
-        
-        struct Info
-        {
-            int line, column;
-        };
-        
-    public:
-        Token(Type type = Bad, std::string const& value = "");
-        
-        Type type() const;
-        std::string const& value() const;
-        
-        void setInfo(Info const& info);
-        Info const& info() const;
-        
-    private:
-        Type m_type;
-        std::string m_value;
-        Info m_info;
+        TOKEN_EOF,
+        TOKEN_BAD,
+        TOKEN_DIRECTIVE,
+        TOKEN_IDENTIFIER,
+        TOKEN_LABEL,
+        TOKEN_REGISTER,
+        TOKEN_IMMEDIATE,
+        TOKEN_LEFT_BRACKET,
+        TOKEN_RIGHT_BRACKET,
+        TOKEN_OFFSET,
+        TOKEN_COMMA,
+        TOKEN_NEWLINE
+    };
+    
+    struct token_info
+    {
+        int line, column;
+    };
+    
+    struct token
+    {
+        uint32_t type;
+        std::string value;
+        token_info info;
     };
 }
 

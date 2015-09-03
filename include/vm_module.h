@@ -68,8 +68,8 @@ namespace vm
         uint32_t entry;
     };
     
-    //! A hatch is a C wrapper function which links the
-    //!   virtual code to host C functions.
+    //! A hatch is a structure which links the
+    //!   virtual code to a host C function.
     struct module;
     struct hatch
     {
@@ -102,8 +102,8 @@ namespace vm
     };
     
     //! Create a virtual core.
-    //! Note that you are responsible of setting the prgm
-    //!   field manually.
+    //! Note that you are responsible of setting the segments
+    //!   and hatches fields manually.
     module module_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatchs_size);
     
     //! Delete a virtual core.

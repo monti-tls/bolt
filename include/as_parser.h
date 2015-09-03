@@ -21,8 +21,8 @@
 
 namespace as
 {
-    //! This class defines a parser (built on top
-    //!   of as::Lexer) to parse text Bolt assembly files.
+    //! This file defines a parser (built on top
+    //!   of as::lexer) to parse text Bolt assembly files.
     //! A text Bolt assembly file (called a module) contain
     //!   a mix of directives and instructions (in any order).
     //!
@@ -56,11 +56,20 @@ namespace as
     public:
         Parser(Lexer& lex);
         
+        void parse();
+        
     private:
+        void M_skipLines();
+        void M_directive();
+        void M_label();
+        void M_instruction();
+        void M_operand();
+        
         void M_error(Token const& at, std::string const& msg);
         
     private:
         Lexer& m_lex;
+        int m_pass;
     };
 }
 

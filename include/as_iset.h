@@ -31,14 +31,14 @@ namespace as
     //! OPT:  set the operand to be optional
     enum : uint32_t
     {
-        ISET_OP_FLAG_NONE = 0x00000000,
-        ISET_OP_FLAG_REG  = 0x00000001,
-        ISET_OP_FLAG_IMM  = 0x00000002,
+        OP_FLAG_NONE = 0x00000000,
+        OP_FLAG_REG  = 0x00000001,
+        OP_FLAG_IMM  = 0x00000002,
         
-        ISET_OP_FLAG_ALL  = ISET_OP_FLAG_REG
-                          | ISET_OP_FLAG_IMM,
+        OP_FLAG_ALL  = OP_FLAG_REG
+                     | OP_FLAG_IMM,
                           
-        ISET_OP_FLAG_OPT  = 0x80000000
+        OP_FLAG_OPT  = 0x80000000
     };
     
     //! This file holds a static table of iset_entry (created

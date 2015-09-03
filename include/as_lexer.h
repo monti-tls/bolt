@@ -22,8 +22,7 @@
 
 namespace as
 {
-    //! A class to split a character stream into tokens,
-    //!   for parsing Bolt assembly text files.
+    //! The Bolt text assembly file tokenizer.
     //! Here are the allowed tokens :
     //!   comments:   ';' blabla (single line)
     //!
@@ -39,31 +38,36 @@ namespace as
     //!   offset:     '+'( digit+ ('u' | 'U')?
     //!                  | ('x' | 'x') xdigit+ ('u' | 'U')?)
     //!   comma:      ','
-    class Lexer
+    //!   newline:    '\n'
+    
+    struct lexer
     {
-    public:
-        Lexer(std::istream& in);
+        lexer(std::istream& in) : in(in) {};
         
-        Token get();
-        Token const& seek() const;
+        std::istream& in;
+        int next_char;
         
-    private:
-        void M_init();
-        int M_getChar();
-        void M_skipWs();
-        void M_skipComments();
-        void M_skip();
-        Token M_getToken();
-        
-        bool M_getNumeric(std::string& value, bool allowF);
-        
-    private:
-        std::istream& m_in;
-        
-        int m_nextChar;
-        Token m_nextToken;
-        Token::Info m_currentInfo;
+        token next_token;
+        token_info current_info;
     };
+    
+    //! Create a lexer from an input character stream.
+    lexer lexer_create(std::istream& in);
+    
+    //! Delete a lexer.
+    void lexer_free(lexer& lex);
+    
+    //! Reset a lexer to the beginning of the stream.
+    void lexer_reset(lexer& lex);
+    
+    //! Seek for the next token to be extracted.
+    token const& lexer_seek(lexer& lex);
+    
+    //! Seek for the type of the next token to be extracted.
+    uint32_t lexer_seekt(lexer& lex);
+    
+    //! Extract the next token from the input stream.
+    token lexer_get(lexer& lex);
 }
 
 #endif // BOLT_AS_LEXER_H

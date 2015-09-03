@@ -153,7 +153,7 @@ namespace vm
     
     //! This macro defines the behavior of the definitions in
     //!   iset.inc, here we discard the last two arguments,
-    //!   keeping the first three to cratf our handy icode defines.
+    //!   keeping the first three to craft our handy icode defines.
     #define DECL_INSTR(group, name, offset, a, b) \
         I_CODE_ ## name = ((I_GROUP_ ## group << I_GROUP_SHIFT) + (offset)),
     

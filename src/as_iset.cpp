@@ -19,13 +19,13 @@
 
 namespace as
 {
-    /*************************************/
-    /*** Private module implementation ***/
-    /*************************************/
+    /**************************************/
+    /*** Private implementation section ***/
+    /**************************************/
     
     //! A small flag macro helper, to avoid
-    //!   typing ISET_OP_FLAG_* everytime.
-    #define F(flag) ISET_OP_FLAG_ ## flag
+    //!   typing OP_FLAG_* everytime.
+    #define F(flag) OP_FLAG_ ## flag
     //! This macro defines the behavior of the declarations in iset.inc,
     //!   here we use it to extract mnemonic, icode and operand
     //!   flags data to our iset_entry array.
@@ -68,7 +68,9 @@ namespace as
     /*************************/
     
     bool iset_exists(std::string const& mnemonic)
-    { return iset_find(mnemonic); }
+    {
+        return iset_find(mnemonic);
+    }
     
     iset_entry* iset_find(std::string const& mnemonic)
     {
