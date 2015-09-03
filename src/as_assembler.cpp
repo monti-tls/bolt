@@ -15,6 +15,9 @@
  */
 
 #include "as_assembler.h"
+#include "as_iset.h"
+#include "vm_bytes.h"
+#include "vm_module.h"
 #include <stdexcept>
 #include <sstream>
 #include <algorithm>
@@ -68,6 +71,9 @@ namespace as
         
         ass.externs_size = 0;
         ass.externs = 0;
+        
+        ass.labels_size = 0;
+        ass.labels = 0;
     }
     
     //! Free temporary objects from the assembler.
@@ -92,6 +98,11 @@ namespace as
             delete[] ass.externs;
         ass.externs = 0;
         ass.externs_size = 0;
+        
+        if (ass.labels)
+            delete[] ass.labels;
+        ass.labels = 0;
+        ass.labels_size = 0;
     }
     
     //! Search the pending label table for the given label name.
@@ -155,6 +166,27 @@ namespace as
         grow_array(ass.externs_size++, ass.externs) = name;
     }
     
+    //! Find a label in the label table.
+    //! Return 0 if not found.
+    static label* assembler_find_label(assembler& ass, std::string const& name)
+    {
+        for (uint32_t i = 0; i < ass.labels_size; ++i)
+            if (ass.labels[i].name == name)
+                return ass.labels + 1;
+        
+        return 0;
+    }
+    
+    //! Add a label to the label table.
+    static void assembler_add_label(assembler& ass, std::string const& name, uint32_t location)
+    {
+        label l;
+        l.name = name;
+        l.location = location;
+        
+        grow_array(ass.labels_size++, ass.labels) = l;
+    }
+    
     //! Parse an assembler directive.
     static void assembler_directive(assembler& ass)
     {
@@ -195,7 +227,7 @@ namespace as
         else if (directive == "extern")
         {
             // Find the target label
-            assembler_expect(ass, TOKEN_IDENTIFIER, ".global directive expects an identifier");
+            assembler_expect(ass, TOKEN_IDENTIFIER, ".extern directive expects an identifier");
             tok = lexer_get(ass.lex);
             std::string name = tok.value;
             
@@ -211,14 +243,181 @@ namespace as
             assembler_error(tok, "unknown directive \"" + directive + "\"");
     }
     
+    //! Parse an assembler label, adding it to the label table.
     static void assembler_label(assembler& ass)
     {
-        //TODO: fix the label from the pending list
+        assembler_expect(ass, TOKEN_LABEL, "label expected");
+        token tok = lexer_get(ass.lex);
+        std::string name = tok.value;
+        
+        if (assembler_find_label(ass, name))
+            assembler_error(tok, "label \"" + name + "\" was already defined");
+        
+        assembler_add_label(ass, name, ass.mod.segment_size);
     }
     
+    //! Get an immediate value (or offset) from string.
+    static uint32_t assembler_get_value(std::string const& value)
+    {
+        //TODO: real implementation
+        
+        return 0xFDECDBC0;
+    }
+    
+    //! Get a register value from name.
+    static uint32_t assembler_get_register(std::string const& name)
+    {
+        //TODO: perhaps automatize this in as_iset.cpp ?
+        
+             if (name == "IR"  || name == "ir")  return vm::REG_CODE_IR;
+        else if (name == "SEG" || name == "seg") return vm::REG_CODE_SEG;
+        else if (name == "PC"  || name == "pc")  return vm::REG_CODE_PC;
+        else if (name == "SP"  || name == "sp")  return vm::REG_CODE_SP;
+        else if (name == "PSR" || name == "psr") return vm::REG_CODE_PSR;
+        else if (name == "RV"  || name == "rv")  return vm::REG_CODE_RV;
+        else if (name == "AB"  || name == "ab")  return vm::REG_CODE_AB;
+        else return vm::REG_COUNT;
+    }
+    
+    static void assembler_operand(assembler& ass, uint32_t allowed_flags)
+    {
+        // Check for indirection modifier
+        bool ind = false;
+        if (lexer_seekt(ass.lex) == TOKEN_LEFT_BRACKET)
+        {
+            lexer_get(ass.lex);
+            ind = true;
+        }
+        
+        // Check for operand type
+        token tok = lexer_get(ass.lex);
+        switch (tok.type)
+        {
+            case TOKEN_REGISTER:
+            {
+                if (!(allowed_flags & OP_FLAG_REG))
+                    assembler_error(tok, "register operand is not allowed for this instruction");
+                
+                uint32_t reg = assembler_get_register(tok.value);
+                if (reg >= vm::REG_COUNT)
+                    assembler_error(tok, "invalid register name \"" + tok.value + "\"");
+                
+                //TODO: encode ?
+                
+                break;
+            }
+                
+            case TOKEN_IMMEDIATE:
+                if (!(allowed_flags & OP_FLAG_IMM))
+                    assembler_error(tok, "immediate operand is not allowed for this instruction");
+                
+                //TODO: encode ?
+                
+                break;
+                
+            case TOKEN_LABEL:
+                if (!(allowed_flags & OP_FLAG_IMM))
+                    assembler_error(tok, "immediate operand is not allowed for this instruction");
+                
+                //TODO: encode ?
+                
+                break;
+                
+            default:
+                assembler_error(tok, "bad operand token");
+        }
+        
+        // Check for immediate offset modifier
+        bool off = false;
+        uint32_t offset;
+        if (lexer_seekt(ass.lex) == TOKEN_OFFSET)
+        {
+            tok = lexer_get(ass.lex);
+            
+            if (!ind)
+                assembler_error(tok, "offset is allowed only within indirection");
+            
+            off = true;
+            offset = assembler_get_value(tok.value);
+        }
+        
+        // Match indirection modifier
+        if (ind)
+        {
+            assembler_expect(ass, TOKEN_RIGHT_BRACKET, "`]' expected");
+            lexer_get(ass.lex);
+        }
+        
+        //TODO: encode ?
+    }
+    
+    static void assembler_instruction(assembler& ass)
+    {
+        assembler_expect(ass, TOKEN_IDENTIFIER, "mnemonic expected");
+        token tok = lexer_get(ass.lex);
+        std::string mnemonic = tok.value;
+        
+        iset_entry* entry = iset_find(mnemonic);
+        if (!entry)
+            assembler_error(tok, "invalid mnemonic \"" + mnemonic + "\"");
+        
+        uint32_t instr_addr = module_add_word(ass.mod, entry->icode << vm::I_CODE_SHIFT);
+        
+        bool hasA = false;
+        bool hasB = false;
+        
+        if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+        {
+            hasA = true;
+            assembler_operand(ass, entry->aflags);
+            
+            if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+            {
+                assembler_expect(ass, TOKEN_COMMA, "`,' expected");
+                lexer_get(ass.lex);
+                
+                hasB = true;
+                assembler_operand(ass, entry->bflags);
+            }
+        }
+        
+        //TODO: check operand presence
+    }
+    
+    //! Skip new lines.
+    static void assembler_skip(assembler& ass)
+    {
+        while (lexer_seekt(ass.lex) == TOKEN_NEWLINE)
+            lexer_get(ass.lex);
+    }
+    
+    //! Parse the test assembly file.
     static void assembler_parse(assembler& ass)
     {
-        
+        while (lexer_seekt(ass.lex) != TOKEN_EOF)
+        {
+            assembler_skip(ass);
+            
+            switch (lexer_seekt(ass.lex))
+            {
+                case TOKEN_DIRECTIVE:
+                    assembler_directive(ass);
+                    break;
+                    
+                case TOKEN_LABEL:
+                    assembler_label(ass);
+                    break;
+                    
+                case TOKEN_IDENTIFIER:
+                    assembler_instruction(ass);
+                    break;
+                
+                default:
+                    assembler_error(lexer_seek(ass.lex), "bad token");
+            }
+            
+            assembler_skip(ass);
+        }
     }
     
     /*************************/
@@ -233,4 +432,15 @@ namespace as
     
     void assembler_free(assembler&)
     {}
+    
+    module assembler_assemble(assembler& ass)
+    {
+        assembler_temps_create(ass);
+        
+        assembler_parse(ass);
+        
+        assembler_temps_free(ass);
+        
+        return ass.mod;
+    }
 }

@@ -47,7 +47,7 @@ namespace as
     //! Note that mnemonics are case-insensitive.
     struct iset_entry
     {
-        const char* mnemonic;
+        std::string mnemonic;
         uint32_t icode;
         uint32_t aflags;
         uint32_t bflags;

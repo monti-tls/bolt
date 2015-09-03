@@ -44,6 +44,17 @@ namespace as
         bool fixed;
     };
     
+    //! A label entry, each time a label is defined
+    //!   in the source assembly file, a such entry is
+    //!   added in the table.
+    //! Later on, pending label references (pointers and locations)
+    //!   are fixed using this table.
+    struct label
+    {
+        std::string name;
+        uint32_t location;
+    };
+    
     struct assembler
     {
         assembler(lexer& lex) : lex(lex) {}
@@ -56,6 +67,9 @@ namespace as
         uint32_t externs_size;
         std::string* externs;
         
+        uint32_t labels_size;
+        label* labels;
+        
         module mod;
     };
     
@@ -64,6 +78,9 @@ namespace as
     
     //! Delete an assembler object.
     void assembler_free(assembler& ass);
+    
+    //! Assemble the stream into a module.
+    module assembler_assemble(assembler& ass);
 }
 
 #endif // BOLT_AS_ASSEMBLER_H

@@ -143,17 +143,18 @@ int main1()
 
 #include "as_token.h"
 #include "as_lexer.h"
+#include "as_assembler.h"
 #include <fstream>
 
 int main()
 {
     using namespace as;
     
-    std::ifstream fs("test.bas", std::ios::in);
+    std::ifstream fs("sample.bas", std::ios::in);
     
     lexer lex = lexer_create(fs);
     
-    token tok;
+    /*token tok;
     while (lexer_seekt(lex) != TOKEN_EOF)
     {
         tok = lexer_get(lex);
@@ -169,7 +170,11 @@ int main()
         }
     }
     
-    lexer_free(lex);
+    lexer_free(lex);*/
+    
+    assembler ass = assembler_create(lex);
+    module mod = assembler_assemble(ass);
+    assembler_free(ass);
     
     return 0;
 }
