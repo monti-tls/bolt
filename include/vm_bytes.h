@@ -64,11 +64,12 @@ namespace vm
     //!            MOV  <A>, <B>: move B's value to A
     //!
     //!   FLOW: the program flow control group:
-    //!            CALL <A>: call the function starting at A's address
-    //!            RET:      return from the current function
-    //!            JMP  <A>: go to A's address
-    //!            JZ   <A>: jump to A if the Z flag is set in PSR
-    //!            JNZ  <A>: jump to A if the Z flag is not set in PSR
+    //!            CALL <A>:      call the function starting at A's address
+    //!            CALL <A>, <B>: call the function at B (within segment A)
+    //!            RET:           return from the current function
+    //!            JMP  <A>:      go to A's address
+    //!            JZ   <A>:      jump to A if the Z flag is set in PSR
+    //!            JNZ  <A>:      jump to A if the Z flag is not set in PSR
     //!
     //!            JE, JNE, JL, JLE, JG, JGE behaves similarly
     //!

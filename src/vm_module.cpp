@@ -28,16 +28,16 @@ namespace vm
     //! Fetch a word from the module's program memory.
     static uint32_t* fetch_word(module& mod)
     {
-        if (mod.registers[REG_CODE_PC] >= mod.header.program_size)
+        if (mod.registers[REG_CODE_PC] >= mod.segments[mod.registers[REG_CODE_SEG]]->size)
             throw std::runtime_error("vm::fetch_word: PC out of bounds");
         
-        return mod.program + mod.registers[REG_CODE_PC]++;
+        return mod.segments[mod.registers[REG_CODE_SEG]]->buffer + mod.registers[REG_CODE_PC]++;
     }
     
     //! Access the module's memory at the given address.
     static uint32_t* mem_access(module& mod, uint32_t addr)
     {
-        if (addr > mod.header.stack_size)
+        if (addr > mod.stack_size)
             throw std::runtime_error("vm::mem_access: address out of bounds");
         
         return mod.stack + addr;
@@ -46,7 +46,7 @@ namespace vm
     //! Push a value onto the module's stack.
     static void stack_push(module& mod, uint32_t value)
     {
-        if (mod.registers[REG_CODE_SP] >= mod.header.stack_size)
+        if (mod.registers[REG_CODE_SP] >= mod.stack_size)
             throw std::runtime_error("vm::stack_push: stack overflow :(");
         
         mod.stack[mod.registers[REG_CODE_SP]++] = value;
@@ -174,7 +174,7 @@ namespace vm
                 
             case I_CODE_DMS:
                 std::cout << "Stack dump :" << std::endl;
-                if (mod.registers[REG_CODE_SP] >= mod.header.stack_size)
+                if (mod.registers[REG_CODE_SP] >= mod.stack_size)
                 {
                     std::cout << "<corrupted SP>" << std::endl;
                     break;
@@ -192,6 +192,7 @@ namespace vm
             case I_CODE_DMR:
                 std::cout << "Register dump :" << std::endl;
                 std::cout << "PC:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_PC] << std::endl;
+                std::cout << "SEG: 0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_SEG] << std::endl;
                 std::cout << "SP:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_SP] << std::endl;
                 std::cout << "PSR: 0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_PSR];
                 if (mod.registers[REG_CODE_PSR] & PSR_FLAG_HALT)
@@ -249,7 +250,7 @@ namespace vm
         //   because if A is an immediate value, we will save a bad PC,
         //   as we will save it before reading the additional word.
         // Don't dereference it now because for RET it is null.
-        uint32_t* target = decode_A(mod);
+        uint32_t* a = decode_A(mod);
         
         switch (icode)
         {
@@ -262,6 +263,7 @@ namespace vm
             //!   has returned.
             //! The return value can be written in the special register RV.
             //! The caller must save the RV register itself if needed.
+            //! 
             //! Stack frame when calling :
             //!
             //! +--------+
@@ -276,10 +278,14 @@ namespace vm
             //! |  PSR   |
             //! +--------+
             //! |  PC    |
+            //! +--------+
+            //! |  SEG   |
             //! +--------+ <--- top of the stack
             //!
             case I_CODE_CALL:
             {
+                uint32_t* b = decode_B(mod);
+                
                 // Because we use post-incrementation stack addressing,
                 //   SP is actually just over the top, so we must save SP-1
                 //   to get the argument base address.
@@ -288,54 +294,68 @@ namespace vm
                 stack_push(mod, mod.registers[REG_CODE_AB]);
                 stack_push(mod, mod.registers[REG_CODE_PSR]);
                 stack_push(mod, mod.registers[REG_CODE_PC]);
+                stack_push(mod, mod.registers[REG_CODE_SEG]);
                 
                 mod.registers[REG_CODE_AB] = args_base;
-                mod.registers[REG_CODE_PC] = *target;
+                
+                // Long call case (must change segment)
+                // Two operands, A (segment) and B (offset)
+                if (b)
+                {
+                    mod.registers[REG_CODE_SEG] = *a;
+                    mod.registers[REG_CODE_PC] = *b;
+                }
+                // Normal call, just one operand A
+                else
+                {
+                    mod.registers[REG_CODE_PC] = *b;
+                }
                 break;
             }
                 
             case I_CODE_RET:
+                mod.registers[REG_CODE_SEG] = stack_pop(mod);
                 mod.registers[REG_CODE_PC] = stack_pop(mod);
                 mod.registers[REG_CODE_PSR] = stack_pop(mod);
                 mod.registers[REG_CODE_AB] = stack_pop(mod);
                 break;
                 
             case I_CODE_JMP:
-                mod.registers[REG_CODE_PC] = *target;
+                mod.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JZ:
             case I_CODE_JE:
                 if (mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
-                    mod.registers[REG_CODE_PC] = *target;
+                    mod.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JNZ:
             case I_CODE_JNE:
                 if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_Z))
-                    mod.registers[REG_CODE_PC] = *target;
+                    mod.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JL:
                 if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N)
-                    mod.registers[REG_CODE_PC] = *target;
+                    mod.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JLE:
                 if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N ||
                     mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
-                    mod.registers[REG_CODE_PC] = *target;
+                    mod.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JG:
                 if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_N))
-                    mod.registers[REG_CODE_PC] = *target;
+                    mod.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JGE:
                 if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_N) ||
                     mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
-                    mod.registers[REG_CODE_PC] = *target;
+                    mod.registers[REG_CODE_PC] = *a;
                 break;
                 
             default:
@@ -479,38 +499,43 @@ namespace vm
     /*** Public module API ***/
     /*************************/
     
-    module module_create(uint32_t stack_size)
+    module module_create(uint32_t stack_size, uint32_t segments_size)
     {
         module mod;
-        mod.header.stack_size = stack_size;
+        mod.stack_size = stack_size;
         mod.stack = new uint32_t[stack_size];
         
-        mod.header.program_size = 0;
-        mod.header.entry = 0;
-        mod.program = 0;
+        mod.segments_size = segments_size;
+        mod.segments = new program*[segments_size];
         
         return mod;
     }
     
     void module_free(module& mod)
     {
+        if (mod.segments)
+            delete[] mod.segments;
+        mod.segments = 0;
+        mod.segments_size = 0;
+        
         if (mod.stack)
             delete[] mod.stack;
         
         mod.stack = 0;
-        mod.header.stack_size = 0;
+        mod.stack_size = 0;
     }
     
     void module_reset(module& mod)
     {
-        mod.registers[REG_CODE_PC] = mod.header.entry;
+        mod.registers[REG_CODE_SEG] = mod.base;
+        mod.registers[REG_CODE_PC] = mod.segments[mod.registers[REG_CODE_SEG]]->entry;
         mod.registers[REG_CODE_SP] = 0;
         mod.registers[REG_CODE_PSR] = PSR_FLAG_NONE;
     }
     
     void module_run(module& mod)
     {
-        while (mod.registers[REG_CODE_PC] < mod.header.program_size &&
+        while (mod.registers[REG_CODE_PC] < mod.segments[mod.registers[REG_CODE_SEG]]->size &&
                !(mod.registers[REG_CODE_PSR] & PSR_FLAG_HALT))
         {
             execute(mod);

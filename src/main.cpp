@@ -70,8 +70,10 @@ int main()
         I(MOV) | A(REG, R(RV)) | B(IMM, 0),
         1,
         I(PUSH) | A(REG, R(RV)),
-        I(CALL) | A(IMM, 0),
-        0x0D,
+        // Long call to another segment
+        I(CALL) | A(IMM, 0) | B(IMM, 0),
+        0x01, // segment 1
+        0x00, // @0
         I(PUSH) | A(IMM, 0),
         5,
         I(UCMP),
@@ -79,8 +81,11 @@ int main()
         0x02,
         I(DMR),
         I(DMS),
-        I(HALT),
-        
+        I(HALT)
+    };
+    
+    uint32_t prog2[] =
+    {
         I(PUSH) | Ai(REG, R(AB)),
         I(PUSH) | A(IMM, 0),
         0x01,
@@ -89,11 +94,21 @@ int main()
         I(RET)
     };
     
-    module mod = module_create(128);
+    module mod = module_create(128, 2);
     
-    mod.header.program_size = sizeof(prog) / sizeof(uint32_t);
-    mod.header.entry = 0;
-    mod.program = prog;
+    program prgm;
+    prgm.buffer = prog;
+    prgm.size = sizeof(prog) / sizeof(uint32_t);
+    prgm.entry = 0;
+    mod.segments[0] = &prgm;
+    
+    program prgm2;
+    prgm2.buffer = prog2;
+    prgm2.size = sizeof(prog2) / sizeof(uint32_t);
+    prgm2.entry = 0;
+    mod.segments[1] = &prgm2;
+    
+    mod.base = 0;
     
     module_reset(mod);
     module_run(mod);

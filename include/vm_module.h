@@ -25,6 +25,7 @@ namespace vm
     //!
     //! IR:  instruction register
     //! PC:  program counter
+    //! SEG: segment register
     //! SP:  stack pointer
     //! PSR: program status register
     //! RV:  return value register
@@ -32,11 +33,12 @@ namespace vm
     enum : uint32_t
     {
         REG_CODE_IR   = 0x00,
-        REG_CODE_PC   = 0x01,
-        REG_CODE_SP   = 0x02,
-        REG_CODE_PSR  = 0x03,
-        REG_CODE_RV   = 0x04,
-        REG_CODE_AB   = 0x05,
+        REG_CODE_SEG  = 0x01,
+        REG_CODE_PC   = 0x02,
+        REG_CODE_SP   = 0x03,
+        REG_CODE_PSR  = 0x04,
+        REG_CODE_RV   = 0x05,
+        REG_CODE_AB   = 0x06,
         
         REG_COUNT
     };
@@ -55,26 +57,51 @@ namespace vm
         PSR_FLAG_N    = 0x00000002
     };
     
+    //! This structure represents a program to be run on a virtual core.
+    //! It holds a buffer containing the instructions (buffer),
+    //!   plus its size (int uint32_t increments).
+    //! The entry point specifies the initial PC value (if applicable).
+    struct program
+    {
+        uint32_t* buffer;
+        uint32_t size;
+        uint32_t entry;
+        
+        //! Maybe some debug information and
+        //!   named symbol table ?
+        //! Would be useful...
+    };
+    
+    //! Each VM module emulates a physical CPU core.
+    //! It has its own register bank and stack memory.
+    //! The current runned program must be stored in program
+    //!   (along with its size to avoit HALTing the core
+    //!    manually).
+    //! It is possible to execute code from another program
+    //! (that may be dynamically loaded for example) by using the segments
+    //! table.
+    //! The SEG register contains the segment from within the current program
+    //!   is executed.
+    //! It is saved and restored upon CALL and RET instructions and therefore
+    //!   one can easily call a function residing in another segment.
+    //! The base field is the index of the initial segment (it inits the SEG
+    //!   register upon reset).
     struct module
     {
-        struct
-        {
-            uint32_t stack_size;
-            uint32_t program_size;
-            
-            uint32_t entry;
-        } header;
+        uint32_t stack_size;
+        uint32_t segments_size;
+        uint32_t base;
         
         uint32_t registers[REG_COUNT];
         
         uint32_t* stack;
-        uint32_t* program;
+        program** segments;
     };
     
     //! Create a virtual core.
-    //! Note that you are responsible of initializing (and freeing) the
-    //!   header.program_size, header.entry and program fields.
-    module module_create(uint32_t stack_size);
+    //! Note that you are responsible of setting the prgm
+    //!   field manually.
+    module module_create(uint32_t stack_size, uint32_t segments_size);
     
     //! Delete a virtual core.
     void module_free(module& mod);
