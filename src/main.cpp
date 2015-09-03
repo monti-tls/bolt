@@ -149,7 +149,7 @@ int main()
 {
     using namespace as;
     
-    std::ifstream fs("sample.bas", std::ios::in);
+    std::ifstream fs("test.bas", std::ios::in);
     
     lexer lex = lexer_create(fs);
     

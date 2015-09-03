@@ -159,7 +159,7 @@ namespace as
         return true;
     }
     
-        //! Get the next token from the input stream.
+    //! Get the next token from the input stream.
     //! This function also sets debug information for the token.
     token lexer_get_token(lexer& lex)
     {
