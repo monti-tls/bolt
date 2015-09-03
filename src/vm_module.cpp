@@ -68,8 +68,9 @@ namespace vm
     //!   #imm:         immediate value
     //!   [reg]:        register addressing
     //!   [#imm]:       immediate addressing
-    //!   [reg+-#off]:  register addressing plus immediate offset
-    //!   [#imm+-#off]: immediate addressing plus immediate offset (useless but allowed)
+    //!   [reg+#off]:  register addressing plus immediate offset
+    //!   [#imm+#off]: immediate addressing plus immediate offset (useless but allowed)
+    //! Note that immediate offsets are always signed.
     //! All of them (including immediate values) are writable.
     //! Writing to an immediate operand will modify its value in the program memory.
     //! The offset bit is ignored if the indirection bit is not set.
@@ -218,25 +219,31 @@ namespace vm
     //! Execute an instruction from the MEM group.
     static void execute_mem(module& mod, uint32_t icode)
     {
+        uint32_t* a = decode_A(mod);
+        uint32_t* b = decode_B(mod);
+        
         switch (icode)
         {
             case I_CODE_PUSH:
-                stack_push(mod, *decode_A(mod));
+                if (!a)
+                    throw std::logic_error("vm::execute_mem: expected an operand in PUSH");
+                stack_push(mod, *a);
                 break;
                 
             case I_CODE_POP:
             {
                 // We allow POP's without operands so check
                 //   before dereferencing A !
-                uint32_t* target = decode_A(mod);
                 uint32_t value = stack_pop(mod);
-                if (target)
-                    *target = value;
+                if (a)
+                    *a = value;
                 break;
             }
                 
             case I_CODE_MOV:
-                *decode_A(mod) = *decode_B(mod);
+                if (!a || !b)
+                    throw std::logic_error("vm::execute_mem: expected two operands in MOV");
+                *a = *b;
                 break;
                 
             default:
@@ -284,8 +291,11 @@ namespace vm
             //!
             case I_CODE_CALL:
             {
-                uint32_t* b = decode_B(mod);
+                if (!a)
+                    throw std::logic_error("vm::execute_flow: expected at least one operand in CALL");
                 
+                uint32_t* b = decode_B(mod);
+                                
                 // Because we use post-incrementation stack addressing,
                 //   SP is actually just over the top, so we must save SP-1
                 //   to get the argument base address.
@@ -302,14 +312,29 @@ namespace vm
                 // Two operands, A (segment) and B (offset)
                 if (b)
                 {
+                    if (*a >= mod.segments_size)
+                        throw std::logic_error("vm::execute_flow: invalid segment address in long CALL");
+                    
                     mod.registers[REG_CODE_SEG] = *a;
                     mod.registers[REG_CODE_PC] = *b;
                 }
                 // Normal call, just one operand A
                 else
                 {
-                    mod.registers[REG_CODE_PC] = *b;
+                    mod.registers[REG_CODE_PC] = *a;
                 }
+                break;
+            }
+            
+            case I_CODE_DIVE:
+            {
+                if (!a)
+                    throw std::logic_error("vm::execute_flow: expected at least one operand in DIVE");
+                if (*a > mod.hatches_size)
+                    throw std::logic_error("vm::execute_flow: invalid hatch address in DIVE");
+                
+                mod.hatches[*a]->entry(mod);
+                
                 break;
             }
                 
@@ -319,6 +344,9 @@ namespace vm
                 mod.registers[REG_CODE_PSR] = stack_pop(mod);
                 mod.registers[REG_CODE_AB] = stack_pop(mod);
                 break;
+                
+            if (!a)
+                throw std::logic_error("vm::execute_flow: expected an operand in jump instruction");
                 
             case I_CODE_JMP:
                 mod.registers[REG_CODE_PC] = *a;
@@ -499,20 +527,28 @@ namespace vm
     /*** Public module API ***/
     /*************************/
     
-    module module_create(uint32_t stack_size, uint32_t segments_size)
+    module module_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatches_size)
     {
         module mod;
         mod.stack_size = stack_size;
         mod.stack = new uint32_t[stack_size];
         
         mod.segments_size = segments_size;
-        mod.segments = new program*[segments_size];
+        mod.segments = new segment*[segments_size];
+        
+        mod.hatches_size = hatches_size;
+        mod.hatches = new hatch*[hatches_size];
         
         return mod;
     }
     
     void module_free(module& mod)
     {
+        if (mod.hatches)
+            delete[] mod.hatches;
+        mod.hatches = 0;
+        mod.hatches_size = 0;
+        
         if (mod.segments)
             delete[] mod.segments;
         mod.segments = 0;
@@ -520,7 +556,6 @@ namespace vm
         
         if (mod.stack)
             delete[] mod.stack;
-        
         mod.stack = 0;
         mod.stack_size = 0;
     }

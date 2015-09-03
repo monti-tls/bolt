@@ -30,7 +30,21 @@
     | ((val) << OP_B_VAL_SHIFT) \
     | (OP_B_OFF))
 
-int main()
+unsigned int inc(unsigned int a)
+{
+    return a+1;
+}
+
+void inc_hatch(vm::module& mod)
+{
+    using namespace vm;
+    
+    uint32_t* arg = mod.stack + mod.registers[REG_CODE_SP]-1;
+    unsigned int r = inc(*((unsigned int*) arg));
+    mod.registers[REG_CODE_RV] = *((uint32_t*) &r);
+}
+    
+int main1()
 {
     using namespace vm;
 
@@ -65,6 +79,7 @@ int main()
      *   ret
      */
     
+    // Segment 1 code
     uint32_t prog[] =
     {
         I(MOV) | A(REG, R(RV)) | B(IMM, 0),
@@ -74,6 +89,9 @@ int main()
         I(CALL) | A(IMM, 0) | B(IMM, 0),
         0x01, // segment 1
         0x00, // @0
+        // Hatch dive (host call)
+        /*I(DIVE) | A(IMM, 0),
+        0x00,*/
         I(PUSH) | A(IMM, 0),
         5,
         I(UCMP),
@@ -84,6 +102,7 @@ int main()
         I(HALT)
     };
     
+    // Segment 2 code
     uint32_t prog2[] =
     {
         I(PUSH) | Ai(REG, R(AB)),
@@ -94,15 +113,15 @@ int main()
         I(RET)
     };
     
-    module mod = module_create(128, 2);
+    module mod = module_create(128, 2, 1);
     
-    program prgm;
+    segment prgm;
     prgm.buffer = prog;
     prgm.size = sizeof(prog) / sizeof(uint32_t);
     prgm.entry = 0;
     mod.segments[0] = &prgm;
     
-    program prgm2;
+    segment prgm2;
     prgm2.buffer = prog2;
     prgm2.size = sizeof(prog2) / sizeof(uint32_t);
     prgm2.entry = 0;
@@ -110,10 +129,42 @@ int main()
     
     mod.base = 0;
     
+    hatch test;
+    test.entry = inc_hatch;
+    mod.hatches[0] = &test;
+    
     module_reset(mod);
     module_run(mod);
     
     module_free(mod);
     
     return 0;
+}
+
+#include "as_token.h"
+#include "as_lexer.h"
+#include <fstream>
+
+int main()
+{
+    using namespace as;
+    
+    std::ifstream fs("sample.bas", std::ios::in);
+    Lexer lex(fs);
+    
+    Token tok;
+    while (lex.seek().type() != Token::Eof)
+    {
+        tok = lex.get();
+        
+        if (tok.type() == Token::Bad)
+        {
+            std::cout << "BAD" << std::endl;
+            break;
+        }
+        else
+        {
+            std::cout << "[" << tok.type() << "] = (" << tok.value() << ")" << std::endl;
+        }
+    };
 }

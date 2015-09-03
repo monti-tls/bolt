@@ -40,7 +40,7 @@ namespace vm
     //!   [reg] or [#imm]
     //! An immediate offset can be added (this sets the off bit) :
     //!   [reg+#imm]
-    
+    //!
     //! Here are the bit fields in the 32-bit instruction word :
     //!
     //! +32           +24             +16              +8              +0
@@ -50,22 +50,23 @@ namespace vm
     //!  |GROUP|    CODE     |N|F| O |    VALUE    |N|F| O |    VALUE    |
     //!  |     |             |D|F| D |             |D|F| D |             |
     //!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    
+    //!
     //! Instructions are splitted into groups :
-    //!   SYS: the system group:
+    //!   SYS:   the system group:
     //!            HALT: halt the virtual core
     //!            RST:  reset the virtual core
     //!            DMS:  dump the current stack contents
     //!            DMR:  dump the current register contents
     //!
-    //!   MEM:  the memory group:
+    //!   MEM:   the memory group:
     //!            PUSH <A>:      push A to the stack
     //!            POP  <A>:      pop A from the stack
     //!            MOV  <A>, <B>: move B's value to A
     //!
-    //!   FLOW: the program flow control group:
+    //!   FLOW:  the program flow control group:
     //!            CALL <A>:      call the function starting at A's address
     //!            CALL <A>, <B>: call the function at B (within segment A)
+    //!            DIVE <A>:      dive in the hatch A (that is, call a host function)
     //!            RET:           return from the current function
     //!            JMP  <A>:      go to A's address
     //!            JZ   <A>:      jump to A if the Z flag is set in PSR
@@ -81,7 +82,7 @@ namespace vm
     //!            UCMP: compared the two popped values (as unsigneds) and updates PSR accordingly
     //!
     //!            IADD, ISUB, ... behaves similarly for signed integers
-    //!            FADD, FSUB, ..., "" single-precision floatings
+    //!            FADD, FSUB, ...    "        "      "  single-precision floatings
     
     //! To get the operand code from an encoded instruction, do :
     //!   opcode = (instr & OP_x_CODE) >> OP_x_CODE_SHIFT
@@ -150,47 +151,15 @@ namespace vm
         I_GROUP_SHIFT = 0x07 // 7 bits
     };
     
-    #define DECL_INSTR(group, name, offset) \
-        I_CODE_ ## name = ((I_GROUP_ ## group << I_GROUP_SHIFT) + (offset))
+    //! This macro defines the behavior of the definitions in
+    //!   iset.inc, here we discard the last two arguments,
+    //!   keeping the first three to cratf our handy icode defines.
+    #define DECL_INSTR(group, name, offset, a, b) \
+        I_CODE_ ## name = ((I_GROUP_ ## group << I_GROUP_SHIFT) + (offset)),
     
     enum : uint32_t
     {
-        DECL_INSTR(SYS,   HALT, 0x01),
-        DECL_INSTR(SYS,   RST,  0x02),
-        DECL_INSTR(SYS,   DMS,  0x03),
-        DECL_INSTR(SYS,   DMR,  0x04),
-        
-        DECL_INSTR(MEM,   PUSH, 0x01),
-        DECL_INSTR(MEM,   POP,  0x02),
-        DECL_INSTR(MEM,   MOV,  0x03),
-        
-        DECL_INSTR(FLOW,  CALL, 0x01),
-        DECL_INSTR(FLOW,  RET,  0x02),
-        DECL_INSTR(FLOW,  JMP,  0x03),
-        DECL_INSTR(FLOW,  JZ,   0x04),
-        DECL_INSTR(FLOW,  JNZ,  0x05),
-        DECL_INSTR(FLOW,  JE,   0x06),
-        DECL_INSTR(FLOW,  JNE,  0x07),
-        DECL_INSTR(FLOW,  JL,   0x08),
-        DECL_INSTR(FLOW,  JLE,  0x09),
-        DECL_INSTR(FLOW,  JG,   0x0A),
-        DECL_INSTR(FLOW,  JGE,  0x0B),
-        
-        DECL_INSTR(ARITH, UADD, 0x01),
-        DECL_INSTR(ARITH, USUB, 0x02),
-        DECL_INSTR(ARITH, UMUL, 0x03),
-        DECL_INSTR(ARITH, UDIV, 0x04),
-        DECL_INSTR(ARITH, UCMP, 0x05),
-        DECL_INSTR(ARITH, IADD, 0x06),
-        DECL_INSTR(ARITH, ISUB, 0x07),
-        DECL_INSTR(ARITH, IMUL, 0x08),
-        DECL_INSTR(ARITH, IDIV, 0x09),
-        DECL_INSTR(ARITH, ICMP, 0x0A),
-        DECL_INSTR(ARITH, FADD, 0x0B),
-        DECL_INSTR(ARITH, FSUB, 0x0C),
-        DECL_INSTR(ARITH, FMUL, 0x0D),
-        DECL_INSTR(ARITH, FDIV, 0x0E),
-        DECL_INSTR(ARITH, FCMP, 0x0F)
+        #include "iset.inc"
     };
     
     #undef DECL_INSTR
