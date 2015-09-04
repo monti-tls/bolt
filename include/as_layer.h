@@ -14,11 +14,23 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BOLT_AS_ISET_H
-#define BOLT_AS_ISET_H
+#ifndef BOLT_AS_LAYER_H
+#define BOLT_AS_LAYER_H
 
 #include "common.h"
 #include <string>
+
+//!
+//! as_layer
+//!
+
+//! This file defines the compatibility layer between the assembler module (as_*)
+//!   and the virtual machine module (vm_*).
+//! It does so by defining an interface to fetch instruction mnemonics & operand
+//!   constraints, automatically defined from the vm module, this is achieved
+//!   by using the vm_instructions.inc file.
+//! It also provides a way to fetch register ids from their names, this uses
+//!   the vm_registers.inc file.
 
 namespace as
 {
@@ -41,11 +53,11 @@ namespace as
         OP_FLAG_OPT  = 0x80000000
     };
     
-    //! This file holds a static table of iset_entry (created
-    //!   with vm_iset.inc) describing the instruction set,
+    //! This file holds a static table of layer_instruction (created
+    //!   with vm_instructions.inc) describing the instruction set,
     //!   including instruction mnemonics, codes and allowed operands.
     //! Note that mnemonics are case-insensitive.
-    struct iset_entry
+    struct layer_instruction
     {
         std::string mnemonic;
         uint32_t icode;
@@ -53,12 +65,20 @@ namespace as
         uint32_t bflags;
     };
     
-    //! Check if a given mnemonic exists in the instruction set.
-    bool iset_exists(std::string const& mnemonic);
+    //! A register entry, with name and code.
+    struct layer_register
+    {
+        std::string name;
+        uint32_t code;
+    };
     
-    //! Get the iset_entry corresponding to a mnemonic.
+    //! Get the layer_instruction mapped to a mnemonic.
     //! Returns 0 if not found.
-    iset_entry* iset_find(std::string const& mnemonic);
+    layer_instruction* layer_find_instruction(std::string const& mnemonic);
+    
+    //! Get a register  by name.
+    //! Returns 0 if not found.
+    layer_register* layer_find_register(std::string const& name);
 }
 
-#endif // BOLT_AS_ISET_H
+#endif // BOLT_AS_LAYER_H

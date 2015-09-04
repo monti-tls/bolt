@@ -16,9 +16,9 @@
  
 //! This file defines the Bolt virtual instruction set.
 //! It is included by several files, namely :
-//!   vm_bytes.h:  defines I_CODE_* constants.
-//!   vm_iset.cpp: instruction set mnemonic maps and
-//!                  allowed operands check flags.
+//!   vm_bytes.h:   defines I_CODE_* constants.
+//!   vm_layer.cpp: instruction set mnemonic maps and
+//!                 allowed operands check flags.
 
 DECL_INSTR(SYS,   HALT, 0x01, F(NONE),         F(NONE))
 DECL_INSTR(SYS,   RST,  0x02, F(NONE),         F(NONE))

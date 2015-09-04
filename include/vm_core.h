@@ -14,34 +14,27 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BOLT_VM_MODULE_H
-#define BOLT_VM_MODULE_H
+#ifndef BOLT_VM_CORE_H
+#define BOLT_VM_CORE_H
 
 #include "vm_bytes.h"
 
 namespace vm
 {
-    //! Register names definitions.
-    //!
-    //! IR:  instruction register
-    //! PC:  program counter
-    //! SEG: segment register
-    //! SP:  stack pointer
-    //! PSR: program status register
-    //! RV:  return value register
-    //! AB:  arguments base register
+    //! This macro defines the behavior of the declarations
+    //!   in vm_registers.inc, here they define the enumeration
+    //!   constants REG_CODE_*.
+    #define DECL_REGISTER(name, value) \
+        REG_CODE_ ## name = value,
+    
     enum : uint32_t
     {
-        REG_CODE_IR   = 0x00,
-        REG_CODE_SEG  = 0x01,
-        REG_CODE_PC   = 0x02,
-        REG_CODE_SP   = 0x03,
-        REG_CODE_PSR  = 0x04,
-        REG_CODE_RV   = 0x05,
-        REG_CODE_AB   = 0x06,
+        #include "vm_registers.inc"
         
         REG_COUNT
     };
+    
+    #undef DECL_REGISTER
     
     //! PSR register flags.
     //!
@@ -70,13 +63,13 @@ namespace vm
     
     //! A hatch is a structure which links the
     //!   virtual code to a host C function.
-    struct module;
+    struct core;
     struct hatch
     {
-        void(*entry)(module& mod);
+        void(*entry)(core& vco);
     };
     
-    //! Each VM module emulates a physical CPU core.
+    //! Each VM core emulates a physical CPU core.
     //! It has its own register bank and stack memory.
     //! It is possible to execute code from another program
     //! (that may be dynamically loaded for example) by using the segments
@@ -87,7 +80,7 @@ namespace vm
     //!   one can easily call a function residing in another segment.
     //! The base field is the index of the initial segment (it inits the SEG
     //!   register upon reset).
-    struct module
+    struct core
     {
         uint32_t stack_size;
         uint32_t segments_size;
@@ -104,16 +97,16 @@ namespace vm
     //! Create a virtual core.
     //! Note that you are responsible of setting the segments
     //!   and hatches fields manually.
-    module module_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatchs_size);
+    core core_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatchs_size);
     
     //! Delete a virtual core.
-    void module_free(module& mod);
+    void core_free(core& vco);
     
     //! Reset a virtual core.
-    void module_reset(module& mod);
+    void core_reset(core& vco);
     
     //! Run until the end of the program (or the core halted).
-    void module_run(module& mod);
+    void core_run(core& vco);
 }
 
-#endif // BOLT_VM_MODULE_H
+#endif // BOLT_VM_CORE_H

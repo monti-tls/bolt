@@ -3,4 +3,4 @@ build
 bin/*
 build/*
 .ycm_extra_conf.pyc
-sample.bas
+sample.*

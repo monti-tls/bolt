@@ -17,9 +17,18 @@
 #ifndef BOLT_AS_MODULE_H
 #define BOLT_AS_MODULE_H
 
-#include "as_iset.h"
 #include <string>
 #include <vector>
+
+//!
+//! as_module
+//!
+
+//! This file defines the as_module structure, which represents
+//!   a single assembled file.
+//! It introduces the exported symbols / external dependencies via the symbol
+//!   and relocation tables.
+//! It is the ouput of as_assembler, and input of as_linker.
 
 namespace as
 {

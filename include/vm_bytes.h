@@ -19,6 +19,14 @@
 
 #include <common.h>
 
+//!
+//! vm_bytes
+//!
+
+//! This header file defines the Bolt instruction set's format.
+//! It is the foundation of the virtual machine and is primarily used
+//!   by vm_core.
+
 namespace vm
 {
     //!FIXME: We must use "enum : uint32_t" that is, a C++11's feature :(
@@ -152,14 +160,14 @@ namespace vm
     };
     
     //! This macro defines the behavior of the definitions in
-    //!   iset.inc, here we discard the last two arguments,
+    //!   vm_instructions.inc, here we discard the last two arguments,
     //!   keeping the first three to craft our handy icode defines.
     #define DECL_INSTR(group, name, offset, a, b) \
         I_CODE_ ## name = ((I_GROUP_ ## group << I_GROUP_SHIFT) + (offset)),
     
     enum : uint32_t
     {
-        #include "iset.inc"
+        #include "vm_instructions.inc"
     };
     
     #undef DECL_INSTR

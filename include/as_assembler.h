@@ -20,6 +20,30 @@
 #include "as_lexer.h"
 #include "as_module.h"
 
+//!
+//! as_assembler
+//!
+
+//! This module defines the text assembly program assembler for Bolt.
+
+//! A text Bolt assembly file (called a module) contain
+//!   a mix of directives and instructions (in any order).
+//!
+//! Directives begins with a dot, immediately followed by an identifier,
+//!   then by optional arguments.
+//! The available directives are :
+//!   .entry  (label): specify the entry point of this module
+//!   .extern (label): specifies that the given label is to be found in another object
+//!   .global (label): exports the given label so it can be found in another object
+//!
+//! Instructions are of the form :
+//!   mnemonic [operandA [operandB]]
+//! Where an operand is :
+//!   a register %reg
+//!   an immediate value #val
+//!   an indirection [%reg] or [#val]
+//!   an offset indirection [%reg+val] or [#val+val] (useless ;) )
+
 namespace as
 {
     //! A pending label entry.
@@ -55,6 +79,7 @@ namespace as
         uint32_t location;
     };
     
+    //! The assembler structure.
     struct assembler
     {
         assembler(lexer& lex) : lex(lex) {}
@@ -80,6 +105,7 @@ namespace as
     void assembler_free(assembler& ass);
     
     //! Assemble the stream into a module.
+    //! Note that you must free it yourself !
     module assembler_assemble(assembler& ass);
 }
 

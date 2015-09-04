@@ -19,6 +19,12 @@
 
 #include <string>
 
+//!
+//! as_token
+//!
+
+//! This header file defines token values for as_lexer.
+
 namespace as
 {
     enum : uint32_t
@@ -37,11 +43,14 @@ namespace as
         TOKEN_NEWLINE
     };
     
+    //! This is an information structure about where
+    //!   the token come from.
     struct token_info
     {
         int line, column;
     };
     
+    //! The token structure, with type and value.
     struct token
     {
         uint32_t type;

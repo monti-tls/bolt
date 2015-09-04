@@ -15,9 +15,9 @@
  */
 
 #include "as_assembler.h"
-#include "as_iset.h"
+#include "as_layer.h"
 #include "vm_bytes.h"
-#include "vm_module.h"
+#include "vm_core.h"
 #include <stdexcept>
 #include <sstream>
 #include <algorithm>
@@ -42,13 +42,34 @@ namespace as
         return array[size];
     }
     
+    //! A handy operand intermediate structure, to pass from
+    //!   assembler_parse_operand to assembler_parse_instruction for
+    //!   encoding in the latter.
+    struct assembler_operand
+    {
+        //! Value from OP_CODE_*
+        uint32_t code;
+        //! Operand value (if not immediate).
+        uint32_t value;
+        //! Indirection and offset bits.
+        bool ind, off;
+    };
+    
     //! Output an error, printing debug information about its location.
-    static void assembler_error(token const& where, std::string const& what)
+    static void assembler_parse_error(token const& where, std::string const& what)
     {
         std::ostringstream ss;
-        ss << "as::assembler_error: line " << where.info.line
+        ss << "as::assembler_parse_error: line " << where.info.line
            << ", col " << where.info.column << ": "
            << what;
+        throw std::logic_error(ss.str());
+    }
+    
+    //! Output an error, printing debug information about its location.
+    static void assembler_error(std::string const& what)
+    {
+        std::ostringstream ss;
+        ss << "as::assembler_error: " << what;
         throw std::logic_error(ss.str());
     }
     
@@ -57,7 +78,7 @@ namespace as
     static void assembler_expect(assembler& ass, uint32_t type, std::string const& what)
     {
         if (lexer_seekt(ass.lex) != type)
-            assembler_error(lexer_seek(ass.lex), what);
+            assembler_parse_error(lexer_seek(ass.lex), what);
     }
     
     //! Set up temporary things for the assembler,
@@ -116,38 +137,42 @@ namespace as
         return 0;
     }
     
+    //! Add an empty pending label.
+    static pending_label* assembler_add_pending(assembler& ass, std::string const& name)
+    {
+        pending_label* pending = &grow_array(ass.pending_labels_size++, ass.pending_labels);
+        
+        pending->name = name;
+        pending->pointers_size = 0;
+        pending->pointers = 0;
+        pending->locations_size = 0;
+        pending->locations = 0;
+        
+        return pending;
+    }
+    
     //! Add a pending label pointer by name.
     //! This searchs the pending label table, and create a new entry if needed.
     static void assembler_add_pending_pointer(assembler& ass, std::string const& name, uint32_t* pointer)
     {
-        pending_label* label = assembler_find_pending(ass, name);
-        if (!label)
-        {
-            label = &grow_array(ass.pending_labels_size++, ass.pending_labels);
-            label->pointers_size = 0;
-            label->pointers = 0;
-            label->locations_size = 0;
-            label->locations = 0;
-        }
+        pending_label* pending = assembler_find_pending(ass, name);
         
-        grow_array(label->pointers_size++, label->pointers) = pointer;
+        if (!pending)
+            pending = assembler_add_pending(ass, name);
+        
+        grow_array(pending->pointers_size++, pending->pointers) = pointer;
     }
     
     //! Add a pending label location by name.
     //! This searchs the pending label table, and create a new entry if needed.
     static void assembler_add_pending_location(assembler& ass, std::string const& name, uint32_t location)
     {
-        pending_label* label = assembler_find_pending(ass, name);
-        if (!label)
-        {
-            label = &grow_array(ass.pending_labels_size++, ass.pending_labels);
-            label->pointers_size = 0;
-            label->pointers = 0;
-            label->locations_size = 0;
-            label->locations = 0;
-        }
+        pending_label* pending = assembler_find_pending(ass, name);
         
-        grow_array(label->locations_size++, label->locations) = location;
+        if (!pending)
+            pending = assembler_add_pending(ass, name);
+        
+        grow_array(pending->locations_size++, pending->locations) = location;
     }
     
     //! Find an externed function by name in the externs table.
@@ -188,7 +213,7 @@ namespace as
     }
     
     //! Parse an assembler directive.
-    static void assembler_directive(assembler& ass)
+    static void assembler_parse_directive(assembler& ass)
     {
         assembler_expect(ass, TOKEN_DIRECTIVE, "directive expected");
         
@@ -213,7 +238,7 @@ namespace as
             std::string symname = tok.value;
             
             if (module_find_symbol(ass.mod, symname))
-                assembler_error(tok, "symbol is already exported");
+                assembler_parse_error(tok, "symbol is already exported");
             
             // Create the new symbol
             symbol sym;
@@ -232,144 +257,163 @@ namespace as
             std::string name = tok.value;
             
             if (module_find_symbol(ass.mod, name))
-                assembler_error(tok, "symbol was declared global earlier");
+                assembler_parse_error(tok, "symbol was declared global earlier");
             
             if (assembler_find_extern(ass, name))
-                assembler_error(tok, "symbol is already declared extern");
+                assembler_parse_error(tok, "symbol is already declared extern");
             
             assembler_add_extern(ass, name);
         }
         else
-            assembler_error(tok, "unknown directive \"" + directive + "\"");
+            assembler_parse_error(tok, "unknown directive \"" + directive + "\"");
     }
     
     //! Parse an assembler label, adding it to the label table.
-    static void assembler_label(assembler& ass)
+    static void assembler_parse_label(assembler& ass)
     {
         assembler_expect(ass, TOKEN_LABEL, "label expected");
         token tok = lexer_get(ass.lex);
         std::string name = tok.value;
         
         if (assembler_find_label(ass, name))
-            assembler_error(tok, "label \"" + name + "\" was already defined");
+            assembler_parse_error(tok, "label \"" + name + "\" was already defined");
         
         assembler_add_label(ass, name, ass.mod.segment_size);
     }
     
-    //! Get an immediate value (or offset) from string.
-    static uint32_t assembler_get_value(std::string const& value)
+    //! Parse an immediate value string and get its uint32_t representation.
+    static uint32_t assembler_parse_immediate(std::string const& value)
     {
-        //TODO: real implementation
-        
-        return 0xFDECDBC0;
+        return 0x00000000;
     }
     
-    //! Get a register value from name.
-    static uint32_t assembler_get_register(std::string const& name)
+    //! Parse an operand, adding if needed immediate words to the output module.
+    //! This is why the instruction code must be written *before* calling this function.
+    static assembler_operand assembler_parse_operand(assembler& ass, uint32_t allowed_flags)
     {
-        //TODO: perhaps automatize this in as_iset.cpp ?
+        assembler_operand op;
+        op.value = 0;
+        op.ind = false;
+        op.off = false;
         
-             if (name == "IR"  || name == "ir")  return vm::REG_CODE_IR;
-        else if (name == "SEG" || name == "seg") return vm::REG_CODE_SEG;
-        else if (name == "PC"  || name == "pc")  return vm::REG_CODE_PC;
-        else if (name == "SP"  || name == "sp")  return vm::REG_CODE_SP;
-        else if (name == "PSR" || name == "psr") return vm::REG_CODE_PSR;
-        else if (name == "RV"  || name == "rv")  return vm::REG_CODE_RV;
-        else if (name == "AB"  || name == "ab")  return vm::REG_CODE_AB;
-        else return vm::REG_COUNT;
-    }
-    
-    static void assembler_operand(assembler& ass, uint32_t allowed_flags)
-    {
         // Check for indirection modifier
-        bool ind = false;
         if (lexer_seekt(ass.lex) == TOKEN_LEFT_BRACKET)
         {
             lexer_get(ass.lex);
-            ind = true;
+            op.ind = true;
         }
         
         // Check for operand type
         token tok = lexer_get(ass.lex);
         switch (tok.type)
         {
+            //! The operand is a register.
             case TOKEN_REGISTER:
             {
+                // Check if allowed
                 if (!(allowed_flags & OP_FLAG_REG))
-                    assembler_error(tok, "register operand is not allowed for this instruction");
+                    assembler_parse_error(tok, "register operand is not allowed for this instruction");
                 
-                uint32_t reg = assembler_get_register(tok.value);
-                if (reg >= vm::REG_COUNT)
-                    assembler_error(tok, "invalid register name \"" + tok.value + "\"");
+                // Find it in the hard layer
+                layer_register* reg = layer_find_register(tok.value);
+                if (!reg)
+                    assembler_parse_error(tok, "invalid register name \"" + tok.value + "\"");
                 
-                //TODO: encode ?
-                
+                // Set up the operand's code and value.
+                op.code = vm::OP_CODE_REG;
+                op.value = reg->code;
                 break;
             }
                 
+            //! The operand is an immediate value.
             case TOKEN_IMMEDIATE:
+            {
+                // Check if allowed
                 if (!(allowed_flags & OP_FLAG_IMM))
-                    assembler_error(tok, "immediate operand is not allowed for this instruction");
+                    assembler_parse_error(tok, "immediate operand is not allowed for this instruction");
                 
-                //TODO: encode ?
+                // Set up the operand code
+                op.code = vm::OP_CODE_IMM;
                 
+                // Parse the immediate value and add it to the segment code
+                uint32_t value = assembler_parse_immediate(tok.value);
+                module_add_word(ass.mod, value);
                 break;
-                
-            case TOKEN_LABEL:
+            }
+            
+            //! The operand is an identifier (i.e. a label reference).
+            case TOKEN_IDENTIFIER:
+            {
+                // Check if allowed
                 if (!(allowed_flags & OP_FLAG_IMM))
-                    assembler_error(tok, "immediate operand is not allowed for this instruction");
+                    assembler_parse_error(tok, "immediate operand is not allowed for this instruction");
                 
-                //TODO: encode ?
+                // Set up the operand code
+                op.code = vm::OP_CODE_IMM;
                 
+                // Add a pending label entry to fix this value later on
+                uint32_t location = module_add_word(ass.mod, 0);
+                assembler_add_pending_location(ass, tok.value, location);
                 break;
+            }
                 
             default:
-                assembler_error(tok, "bad operand token");
+                assembler_parse_error(tok, "bad operand token");
         }
         
         // Check for immediate offset modifier
-        bool off = false;
         uint32_t offset;
         if (lexer_seekt(ass.lex) == TOKEN_OFFSET)
         {
             tok = lexer_get(ass.lex);
             
-            if (!ind)
-                assembler_error(tok, "offset is allowed only within indirection");
+            if (!op.ind)
+                assembler_parse_error(tok, "offset is allowed only within indirection");
             
-            off = true;
-            offset = assembler_get_value(tok.value);
+            op.off = true;
+            
+            // Read in the offset value
+            offset = assembler_parse_immediate(tok.value);
+            
+            // Add the offset as an immediate word
+            module_add_word(ass.mod, offset);
         }
         
         // Match indirection modifier
-        if (ind)
+        if (op.ind)
         {
             assembler_expect(ass, TOKEN_RIGHT_BRACKET, "`]' expected");
             lexer_get(ass.lex);
         }
         
-        //TODO: encode ?
+        return op;
     }
     
-    static void assembler_instruction(assembler& ass)
+    static void assembler_parse_instruction(assembler& ass)
     {
+        // Parse the mnemonic.
         assembler_expect(ass, TOKEN_IDENTIFIER, "mnemonic expected");
         token tok = lexer_get(ass.lex);
         std::string mnemonic = tok.value;
         
-        iset_entry* entry = iset_find(mnemonic);
-        if (!entry)
-            assembler_error(tok, "invalid mnemonic \"" + mnemonic + "\"");
+        // Find the mapped layer entry.
+        layer_instruction* instr = layer_find_instruction(mnemonic);
+        if (!instr)
+            assembler_parse_error(tok, "invalid mnemonic \"" + mnemonic + "\"");
         
-        uint32_t instr_addr = module_add_word(ass.mod, entry->icode << vm::I_CODE_SHIFT);
+        // Add the icode word now, as assembler_parse_operand will add
+        //   it owns.
+        uint32_t location = module_add_word(ass.mod, instr->icode << vm::I_CODE_SHIFT);
         
+        // Get the operands, if any
         bool hasA = false;
         bool hasB = false;
+        assembler_operand a, b;
         
         if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
         {
             hasA = true;
-            assembler_operand(ass, entry->aflags);
+            a = assembler_parse_operand(ass, instr->aflags);
             
             if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
             {
@@ -377,11 +421,33 @@ namespace as
                 lexer_get(ass.lex);
                 
                 hasB = true;
-                assembler_operand(ass, entry->bflags);
+                b = assembler_parse_operand(ass, instr->bflags);
             }
         }
         
-        //TODO: check operand presence
+        // Check for operand presence vs. optional flags
+        if ((!hasA && !(instr->aflags & OP_FLAG_OPT) && instr->aflags != OP_FLAG_NONE) ||
+            (!hasB && !(instr->bflags & OP_FLAG_OPT) && instr->bflags != OP_FLAG_NONE))
+            assembler_parse_error(tok, "this instruction expects an operand");
+        
+        // Encode the operands in the icode
+        uint32_t& instr_word = ass.mod.segment[location];
+        if (hasA)
+        {
+            instr_word |= a.code << vm::OP_A_CODE_SHIFT;
+            if (a.ind)
+                instr_word |= vm::OP_A_IND;
+            if (a.off)
+                instr_word |= vm::OP_A_OFF;
+        }
+        if (hasB)
+        {
+            instr_word |= b.code << vm::OP_B_CODE_SHIFT;
+            if (b.ind)
+                instr_word |= vm::OP_B_IND;
+            if (b.off)
+                instr_word |= vm::OP_B_OFF;
+        }
     }
     
     //! Skip new lines.
@@ -401,22 +467,43 @@ namespace as
             switch (lexer_seekt(ass.lex))
             {
                 case TOKEN_DIRECTIVE:
-                    assembler_directive(ass);
+                    assembler_parse_directive(ass);
                     break;
                     
                 case TOKEN_LABEL:
-                    assembler_label(ass);
+                    assembler_parse_label(ass);
                     break;
                     
                 case TOKEN_IDENTIFIER:
-                    assembler_instruction(ass);
+                    assembler_parse_instruction(ass);
                     break;
                 
                 default:
-                    assembler_error(lexer_seek(ass.lex), "bad token");
+                    assembler_parse_error(lexer_seek(ass.lex), "bad token");
             }
             
             assembler_skip(ass);
+        }
+    }
+    
+    //! Fix pending label references using the label table.
+    static void assembler_fix_pending_labels(assembler& ass)
+    {
+        for (uint32_t i = 0; i < ass.pending_labels_size; ++i)
+        {
+            pending_label* pending = ass.pending_labels + i;
+            
+            label* l = assembler_find_label(ass, pending->name);
+            if (!l)
+                assembler_error("unresolved label \"" + pending->name + "\"");
+            
+            // Fix pending pointers
+            for (uint32_t j = 0; j < pending->pointers_size; ++j)
+                *pending->pointers[j] = l->location;
+            
+            // Fix pending words in the program
+            for (uint32_t j = 0; j < pending->locations_size; ++j)
+                ass.mod.segment[pending->locations[j]] = l->location;
         }
     }
     
@@ -435,10 +522,13 @@ namespace as
     
     module assembler_assemble(assembler& ass)
     {
+        // Init temp resources (various tables...)
         assembler_temps_create(ass);
-        
+        // Parse the assembly file
         assembler_parse(ass);
-        
+        // Fix label locations
+        assembler_fix_pending_labels(ass);
+        // Free temp resources (this does *not* free mod)
         assembler_temps_free(ass);
         
         return ass.mod;

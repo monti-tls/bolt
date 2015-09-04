@@ -14,7 +14,7 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "vm_module.h"
+#include "vm_core.h"
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
@@ -26,39 +26,39 @@ namespace vm
     /**************************************/
     
     //! Fetch a word from the module's program memory.
-    static uint32_t* fetch_word(module& mod)
+    static uint32_t* fetch_word(core& vco)
     {
-        if (mod.registers[REG_CODE_PC] >= mod.segments[mod.registers[REG_CODE_SEG]]->size)
+        if (vco.registers[REG_CODE_PC] >= vco.segments[vco.registers[REG_CODE_SEG]]->size)
             throw std::runtime_error("vm::fetch_word: PC out of bounds");
         
-        return mod.segments[mod.registers[REG_CODE_SEG]]->buffer + mod.registers[REG_CODE_PC]++;
+        return vco.segments[vco.registers[REG_CODE_SEG]]->buffer + vco.registers[REG_CODE_PC]++;
     }
     
     //! Access the module's memory at the given address.
-    static uint32_t* mem_access(module& mod, uint32_t addr)
+    static uint32_t* mem_access(core& vco, uint32_t addr)
     {
-        if (addr > mod.stack_size)
+        if (addr > vco.stack_size)
             throw std::runtime_error("vm::mem_access: address out of bounds");
         
-        return mod.stack + addr;
+        return vco.stack + addr;
     }
     
     //! Push a value onto the module's stack.
-    static void stack_push(module& mod, uint32_t value)
+    static void stack_push(core& vco, uint32_t value)
     {
-        if (mod.registers[REG_CODE_SP] >= mod.stack_size)
+        if (vco.registers[REG_CODE_SP] >= vco.stack_size)
             throw std::runtime_error("vm::stack_push: stack overflow :(");
         
-        mod.stack[mod.registers[REG_CODE_SP]++] = value;
+        vco.stack[vco.registers[REG_CODE_SP]++] = value;
     }
     
     //! Pop a value from the module's stack.
-    static uint32_t stack_pop(module& mod)
+    static uint32_t stack_pop(core& vco)
     {
-        if (mod.registers[REG_CODE_SP] == 0)
+        if (vco.registers[REG_CODE_SP] == 0)
             throw std::runtime_error("vm::stack_pop: stack underflow :(");
             
-        return mod.stack[--mod.registers[REG_CODE_SP]];
+        return vco.stack[--vco.registers[REG_CODE_SP]];
     }
     
     //! Resolve an operand based on its code, value and indirection bit.
@@ -74,7 +74,7 @@ namespace vm
     //! All of them (including immediate values) are writable.
     //! Writing to an immediate operand will modify its value in the program memory.
     //! The offset bit is ignored if the indirection bit is not set.
-    static uint32_t* resolve_operand(module& mod, uint32_t code, uint32_t val, bool ind, bool off)
+    static uint32_t* resolve_operand(core& vco, uint32_t code, uint32_t val, bool ind, bool off)
     {
         switch (code)
         {
@@ -87,14 +87,14 @@ namespace vm
                     return 0;
                 
                 // Get the register address
-                uint32_t* addr = mod.registers + val;
+                uint32_t* addr = vco.registers + val;
                 // Follow indirection if needed
                 if (ind)
                 {
                     // Add immediate offset if needed
                     if (off)
-                        return mem_access(mod, *addr + *((int32_t*) fetch_word(mod)));
-                    return mem_access(mod, *addr);
+                        return mem_access(vco, *addr + *((int32_t*) fetch_word(vco)));
+                    return mem_access(vco, *addr);
                 }
                 return addr;
             }
@@ -102,14 +102,14 @@ namespace vm
             case OP_CODE_IMM:
             {
                 // Get the immediate operand address
-                uint32_t* addr = fetch_word(mod);
+                uint32_t* addr = fetch_word(vco);
                 // Follow indirection if needed
                 if (ind)
                 {
                     // Add immediate offset if needed
                     if (off)
-                        return mem_access(mod, *addr + *((int32_t*) fetch_word(mod)));
-                    return mem_access(mod, *addr);
+                        return mem_access(vco, *addr + *((int32_t*) fetch_word(vco)));
+                    return mem_access(vco, *addr);
                 }
                 return addr;
             }
@@ -120,9 +120,9 @@ namespace vm
     }
     
     //! Decode the A operand.
-    static uint32_t* decode_A(module& mod)
+    static uint32_t* decode_A(core& vco)
     {
-        uint32_t instr = mod.registers[REG_CODE_IR];
+        uint32_t instr = vco.registers[REG_CODE_IR];
         
         // Read in operand code
         uint32_t code = (instr & OP_A_CODE) >> OP_A_CODE_SHIFT;
@@ -133,13 +133,13 @@ namespace vm
         // Read offset bit
         bool off = instr & OP_A_OFF;
         
-        return resolve_operand(mod, code, val, ind, off);
+        return resolve_operand(vco, code, val, ind, off);
     }
     
     //! Decode the B operand.
-    static uint32_t* decode_B(module& mod)
+    static uint32_t* decode_B(core& vco)
     {
-        uint32_t instr = mod.registers[REG_CODE_IR];
+        uint32_t instr = vco.registers[REG_CODE_IR];
         
         // Read in operand code
         uint32_t code = (instr & OP_B_CODE) >> OP_B_CODE_SHIFT;
@@ -150,64 +150,64 @@ namespace vm
         // Read offset bit
         bool off = instr & OP_B_OFF;
         
-        return resolve_operand(mod, code, val, ind, off);
+        return resolve_operand(vco, code, val, ind, off);
     }
     
     //! Fetch the next instruction form the module's program memory.
-    static uint32_t fetch(module& mod)
+    static uint32_t fetch(core& vco)
     {
         // Instructions are single-word
-        return (mod.registers[REG_CODE_IR] = *fetch_word(mod));
+        return (vco.registers[REG_CODE_IR] = *fetch_word(vco));
     }
     
     //! Execute an instruction from the SYS group.
-    static void execute_sys(module& mod, uint32_t icode)
+    static void execute_sys(core& vco, uint32_t icode)
     {
         switch (icode)
         {
             case I_CODE_HALT:
-                mod.registers[REG_CODE_PSR] |= PSR_FLAG_HALT;
+                vco.registers[REG_CODE_PSR] |= PSR_FLAG_HALT;
                 break;
                 
             case I_CODE_RST:
-                module_reset(mod);
+                core_reset(vco);
                 break;
                 
             case I_CODE_DMS:
                 std::cout << "Stack dump :" << std::endl;
-                if (mod.registers[REG_CODE_SP] >= mod.stack_size)
+                if (vco.registers[REG_CODE_SP] >= vco.stack_size)
                 {
                     std::cout << "<corrupted SP>" << std::endl;
                     break;
                 }
-                for (uint32_t i = 0; i < mod.registers[REG_CODE_SP]; ++i)
+                for (uint32_t i = 0; i < vco.registers[REG_CODE_SP]; ++i)
                 {
                     std::cout << "[" << std::hex << std::setw(8) << std::setfill('0') << i << "] ";
-                    std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << mod.stack[i];
-                    std::cout << " (I " << std::dec << *((int32_t*) &mod.stack[i]) << ")";
-                    std::cout << " (F " << *((float*) &mod.stack[i]) << ")" << std::endl;
+                    std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << vco.stack[i];
+                    std::cout << " (I " << std::dec << *((int32_t*) &vco.stack[i]) << ")";
+                    std::cout << " (F " << *((float*) &vco.stack[i]) << ")" << std::endl;
                 }
                 std::cout << "------------" << std::endl;
                 break;
                 
             case I_CODE_DMR:
                 std::cout << "Register dump :" << std::endl;
-                std::cout << "PC:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_PC] << std::endl;
-                std::cout << "SEG: 0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_SEG] << std::endl;
-                std::cout << "SP:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_SP] << std::endl;
-                std::cout << "PSR: 0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_PSR];
-                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_HALT)
+                std::cout << "PC:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_PC] << std::endl;
+                std::cout << "SEG: 0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_SEG] << std::endl;
+                std::cout << "SP:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_SP] << std::endl;
+                std::cout << "PSR: 0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_PSR];
+                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_HALT)
                     std::cout << " HALT";
-                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N)
+                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_N)
                     std::cout << " N";
-                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
                     std::cout << " Z";
                 std::cout << std::endl;
                 std::cout << "RV:  ";
-                std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_RV];
-                std::cout << " (I " << std::dec << *((int32_t*) &mod.registers[REG_CODE_RV]) << ")";
-                std::cout << " (F " << *((float*) &mod.registers[REG_CODE_RV]) << ")" << std::endl;
-                std::cout << "AB:  0x" << std::hex << std::setw(8) << std::setfill('0') << mod.registers[REG_CODE_AB] << std::endl;
+                std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_RV];
+                std::cout << " (I " << std::dec << *((int32_t*) &vco.registers[REG_CODE_RV]) << ")";
+                std::cout << " (F " << *((float*) &vco.registers[REG_CODE_RV]) << ")" << std::endl;
+                std::cout << "AB:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_AB] << std::endl;
                 std::cout << "---------------" << std::endl;
                 break;
                 
@@ -217,24 +217,24 @@ namespace vm
     }
     
     //! Execute an instruction from the MEM group.
-    static void execute_mem(module& mod, uint32_t icode)
+    static void execute_mem(core& vco, uint32_t icode)
     {
-        uint32_t* a = decode_A(mod);
-        uint32_t* b = decode_B(mod);
+        uint32_t* a = decode_A(vco);
+        uint32_t* b = decode_B(vco);
         
         switch (icode)
         {
             case I_CODE_PUSH:
                 if (!a)
                     throw std::logic_error("vm::execute_mem: expected an operand in PUSH");
-                stack_push(mod, *a);
+                stack_push(vco, *a);
                 break;
                 
             case I_CODE_POP:
             {
                 // We allow POP's without operands so check
                 //   before dereferencing A !
-                uint32_t value = stack_pop(mod);
+                uint32_t value = stack_pop(vco);
                 if (a)
                     *a = value;
                 break;
@@ -251,13 +251,13 @@ namespace vm
         }
     }
     
-    static void execute_flow(module& mod, uint32_t icode)
+    static void execute_flow(core& vco, uint32_t icode)
     {
         // Be careful to decode the operands right now,
         //   because if A is an immediate value, we will save a bad PC,
         //   as we will save it before reading the additional word.
         // Don't dereference it now because for RET it is null.
-        uint32_t* a = decode_A(mod);
+        uint32_t* a = decode_A(vco);
         
         switch (icode)
         {
@@ -294,34 +294,34 @@ namespace vm
                 if (!a)
                     throw std::logic_error("vm::execute_flow: expected at least one operand in CALL");
                 
-                uint32_t* b = decode_B(mod);
+                uint32_t* b = decode_B(vco);
                                 
                 // Because we use post-incrementation stack addressing,
                 //   SP is actually just over the top, so we must save SP-1
                 //   to get the argument base address.
-                uint32_t args_base = mod.registers[REG_CODE_SP] - 1;
+                uint32_t args_base = vco.registers[REG_CODE_SP] - 1;
                 
-                stack_push(mod, mod.registers[REG_CODE_AB]);
-                stack_push(mod, mod.registers[REG_CODE_PSR]);
-                stack_push(mod, mod.registers[REG_CODE_PC]);
-                stack_push(mod, mod.registers[REG_CODE_SEG]);
+                stack_push(vco, vco.registers[REG_CODE_AB]);
+                stack_push(vco, vco.registers[REG_CODE_PSR]);
+                stack_push(vco, vco.registers[REG_CODE_PC]);
+                stack_push(vco, vco.registers[REG_CODE_SEG]);
                 
-                mod.registers[REG_CODE_AB] = args_base;
+                vco.registers[REG_CODE_AB] = args_base;
                 
                 // Long call case (must change segment)
                 // Two operands, A (segment) and B (offset)
                 if (b)
                 {
-                    if (*a >= mod.segments_size)
+                    if (*a >= vco.segments_size)
                         throw std::logic_error("vm::execute_flow: invalid segment address in long CALL");
                     
-                    mod.registers[REG_CODE_SEG] = *a;
-                    mod.registers[REG_CODE_PC] = *b;
+                    vco.registers[REG_CODE_SEG] = *a;
+                    vco.registers[REG_CODE_PC] = *b;
                 }
                 // Normal call, just one operand A
                 else
                 {
-                    mod.registers[REG_CODE_PC] = *a;
+                    vco.registers[REG_CODE_PC] = *a;
                 }
                 break;
             }
@@ -330,60 +330,60 @@ namespace vm
             {
                 if (!a)
                     throw std::logic_error("vm::execute_flow: expected at least one operand in DIVE");
-                if (*a > mod.hatches_size)
+                if (*a > vco.hatches_size)
                     throw std::logic_error("vm::execute_flow: invalid hatch address in DIVE");
                 
-                mod.hatches[*a]->entry(mod);
+                vco.hatches[*a]->entry(vco);
                 
                 break;
             }
                 
             case I_CODE_RET:
-                mod.registers[REG_CODE_SEG] = stack_pop(mod);
-                mod.registers[REG_CODE_PC] = stack_pop(mod);
-                mod.registers[REG_CODE_PSR] = stack_pop(mod);
-                mod.registers[REG_CODE_AB] = stack_pop(mod);
+                vco.registers[REG_CODE_SEG] = stack_pop(vco);
+                vco.registers[REG_CODE_PC] = stack_pop(vco);
+                vco.registers[REG_CODE_PSR] = stack_pop(vco);
+                vco.registers[REG_CODE_AB] = stack_pop(vco);
                 break;
                 
             if (!a)
                 throw std::logic_error("vm::execute_flow: expected an operand in jump instruction");
                 
             case I_CODE_JMP:
-                mod.registers[REG_CODE_PC] = *a;
+                vco.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JZ:
             case I_CODE_JE:
-                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
-                    mod.registers[REG_CODE_PC] = *a;
+                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                    vco.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JNZ:
             case I_CODE_JNE:
-                if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_Z))
-                    mod.registers[REG_CODE_PC] = *a;
+                if (!(vco.registers[REG_CODE_PSR] & PSR_FLAG_Z))
+                    vco.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JL:
-                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N)
-                    mod.registers[REG_CODE_PC] = *a;
+                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_N)
+                    vco.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JLE:
-                if (mod.registers[REG_CODE_PSR] & PSR_FLAG_N ||
-                    mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
-                    mod.registers[REG_CODE_PC] = *a;
+                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_N ||
+                    vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                    vco.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JG:
-                if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_N))
-                    mod.registers[REG_CODE_PC] = *a;
+                if (!(vco.registers[REG_CODE_PSR] & PSR_FLAG_N))
+                    vco.registers[REG_CODE_PC] = *a;
                 break;
                 
             case I_CODE_JGE:
-                if (!(mod.registers[REG_CODE_PSR] & PSR_FLAG_N) ||
-                    mod.registers[REG_CODE_PSR] & PSR_FLAG_Z)
-                    mod.registers[REG_CODE_PC] = *a;
+                if (!(vco.registers[REG_CODE_PSR] & PSR_FLAG_N) ||
+                    vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+                    vco.registers[REG_CODE_PC] = *a;
                 break;
                 
             default:
@@ -392,11 +392,11 @@ namespace vm
     }
     
     //! Execute an instruction from the ARITH group.
-    static void execute_arith(module& mod, uint32_t icode)
+    static void execute_arith(core& vco, uint32_t icode)
     {
         //! Unsigned integer operands.
-        uint32_t u_rhs = stack_pop(mod);
-        uint32_t u_lhs = stack_pop(mod);
+        uint32_t u_rhs = stack_pop(vco);
+        uint32_t u_lhs = stack_pop(vco);
         
         //! Just in case, we cast here operands to signed integers.
         int32_t i_rhs = *((int32_t*) &u_rhs);
@@ -411,80 +411,80 @@ namespace vm
         switch (icode)
         {
             case I_CODE_UADD:
-                stack_push(mod, u_lhs + u_rhs);
+                stack_push(vco, u_lhs + u_rhs);
                 break;
                 
             case I_CODE_USUB:
-                stack_push(mod, u_lhs - u_rhs);
+                stack_push(vco, u_lhs - u_rhs);
                 break;
                 
             case I_CODE_UMUL:
-                stack_push(mod, u_lhs * u_rhs);
+                stack_push(vco, u_lhs * u_rhs);
                 break;
                 
             case I_CODE_UDIV:
-                stack_push(mod, u_lhs / u_rhs);
+                stack_push(vco, u_lhs / u_rhs);
                 break;
             
             case I_CODE_UCMP:
                 if (u_rhs < u_lhs)
-                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_N;
+                    vco.registers[REG_CODE_PSR] |= PSR_FLAG_N;
                 if (u_rhs == u_lhs)
-                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
+                    vco.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
                 break;
                 
             case I_CODE_IADD:
                 i_ret = i_lhs + i_rhs;
-                stack_push(mod, *((uint32_t*) &i_ret));
+                stack_push(vco, *((uint32_t*) &i_ret));
                 break;
                 
             case I_CODE_ISUB:
                 i_ret = i_lhs - i_rhs;
-                stack_push(mod, *((uint32_t*) &i_ret));
+                stack_push(vco, *((uint32_t*) &i_ret));
                 break;
                 
             case I_CODE_IMUL:
                 i_ret = i_lhs * i_rhs;
-                stack_push(mod, *((uint32_t*) &i_ret));
+                stack_push(vco, *((uint32_t*) &i_ret));
                 break;
                 
             case I_CODE_IDIV:
                 i_ret = i_lhs / i_rhs;
-                stack_push(mod, *((uint32_t*) &i_ret));
+                stack_push(vco, *((uint32_t*) &i_ret));
                 break;
                 
             case I_CODE_ICMP:
                 if (i_rhs < i_lhs)
-                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_N;
+                    vco.registers[REG_CODE_PSR] |= PSR_FLAG_N;
                 if (i_rhs == i_lhs)
-                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
+                    vco.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
                 break;
                 
             case I_CODE_FADD:
                 f_ret = f_lhs + f_rhs;
-                stack_push(mod, *((uint32_t*) &f_ret));
+                stack_push(vco, *((uint32_t*) &f_ret));
                 break;
                 
             case I_CODE_FSUB:
                 f_ret = f_lhs - f_rhs;
-                stack_push(mod, *((uint32_t*) &f_ret));
+                stack_push(vco, *((uint32_t*) &f_ret));
                 break;
                 
             case I_CODE_FMUL:
                 f_ret = f_lhs * f_rhs;
-                stack_push(mod, *((uint32_t*) &f_ret));
+                stack_push(vco, *((uint32_t*) &f_ret));
                 break;
                 
             case I_CODE_FDIV:
                 f_ret = f_lhs / f_rhs;
-                stack_push(mod, *((uint32_t*) &f_ret));
+                stack_push(vco, *((uint32_t*) &f_ret));
                 break;
                 
             case I_CODE_FCMP:
                 if (f_rhs < f_lhs)
-                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_N;
+                    vco.registers[REG_CODE_PSR] |= PSR_FLAG_N;
                 if (f_rhs == f_lhs)
-                    mod.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
+                    vco.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
                 break;
                 
             default:
@@ -493,9 +493,9 @@ namespace vm
     }
     
     //! Execute the next instruction.
-    static void execute(module& mod)
+    static void execute(core& vco)
     {
-        uint32_t instr = fetch(mod);
+        uint32_t instr = fetch(vco);
         
         uint32_t icode = (instr & I_CODE_MASK) >> I_CODE_SHIFT;
         uint32_t igroup = (icode & I_GROUP_MASK) >> I_GROUP_SHIFT;
@@ -503,19 +503,19 @@ namespace vm
         switch (igroup)
         {
             case I_GROUP_SYS:
-                execute_sys(mod, icode);
+                execute_sys(vco, icode);
                 break;
                 
             case I_GROUP_MEM:
-                execute_mem(mod, icode);
+                execute_mem(vco, icode);
                 break;
                 
             case I_GROUP_FLOW:
-                execute_flow(mod, icode);
+                execute_flow(vco, icode);
                 break;
                 
             case I_GROUP_ARITH:
-                execute_arith(mod, icode);
+                execute_arith(vco, icode);
                 break;
             
             default:
@@ -527,55 +527,55 @@ namespace vm
     /*** Public module API ***/
     /*************************/
     
-    module module_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatches_size)
+    core core_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatches_size)
     {
-        module mod;
-        mod.stack_size = stack_size;
-        mod.stack = new uint32_t[stack_size];
+        core vco;
+        vco.stack_size = stack_size;
+        vco.stack = new uint32_t[stack_size];
         
-        mod.segments_size = segments_size;
-        mod.segments = new segment*[segments_size];
+        vco.segments_size = segments_size;
+        vco.segments = new segment*[segments_size];
         
-        mod.hatches_size = hatches_size;
-        mod.hatches = new hatch*[hatches_size];
+        vco.hatches_size = hatches_size;
+        vco.hatches = new hatch*[hatches_size];
         
-        return mod;
+        return vco;
     }
     
-    void module_free(module& mod)
+    void core_free(core& vco)
     {
-        if (mod.hatches)
-            delete[] mod.hatches;
-        mod.hatches = 0;
-        mod.hatches_size = 0;
+        if (vco.hatches)
+            delete[] vco.hatches;
+        vco.hatches = 0;
+        vco.hatches_size = 0;
         
-        if (mod.segments)
-            delete[] mod.segments;
-        mod.segments = 0;
-        mod.segments_size = 0;
+        if (vco.segments)
+            delete[] vco.segments;
+        vco.segments = 0;
+        vco.segments_size = 0;
         
-        if (mod.stack)
-            delete[] mod.stack;
-        mod.stack = 0;
-        mod.stack_size = 0;
+        if (vco.stack)
+            delete[] vco.stack;
+        vco.stack = 0;
+        vco.stack_size = 0;
     }
     
-    void module_reset(module& mod)
+    void core_reset(core& vco)
     {
-        mod.registers[REG_CODE_SEG] = mod.base;
-        mod.registers[REG_CODE_PC] = mod.segments[mod.registers[REG_CODE_SEG]]->entry;
-        mod.registers[REG_CODE_SP] = 0;
-        mod.registers[REG_CODE_PSR] = PSR_FLAG_NONE;
+        vco.registers[REG_CODE_SEG] = vco.base;
+        vco.registers[REG_CODE_PC] = vco.segments[vco.registers[REG_CODE_SEG]]->entry;
+        vco.registers[REG_CODE_SP] = 0;
+        vco.registers[REG_CODE_PSR] = PSR_FLAG_NONE;
     }
     
-    void module_run(module& mod)
+    void core_run(core& vco)
     {
-        while (mod.registers[REG_CODE_PC] < mod.segments[mod.registers[REG_CODE_SEG]]->size &&
-               !(mod.registers[REG_CODE_PSR] & PSR_FLAG_HALT))
+        while (vco.registers[REG_CODE_PC] < vco.segments[vco.registers[REG_CODE_SEG]]->size &&
+               !(vco.registers[REG_CODE_PSR] & PSR_FLAG_HALT))
         {
-            execute(mod);
+            execute(vco);
         }
         
-        mod.registers[REG_CODE_PSR] |= PSR_FLAG_HALT;
+        vco.registers[REG_CODE_PSR] |= PSR_FLAG_HALT;
     }
 }

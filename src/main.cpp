@@ -1,5 +1,5 @@
 #include "vm_bytes.h"
-#include "vm_module.h"
+#include "vm_core.h"
 #include <iostream>
 #include <iomanip>
 
@@ -35,13 +35,13 @@ unsigned int inc(unsigned int a)
     return a+1;
 }
 
-void inc_hatch(vm::module& mod)
+void inc_hatch(vm::core& vco)
 {
     using namespace vm;
     
-    uint32_t* arg = mod.stack + mod.registers[REG_CODE_SP]-1;
+    uint32_t* arg = vco.stack + vco.registers[REG_CODE_SP]-1;
     unsigned int r = inc(*((unsigned int*) arg));
-    mod.registers[REG_CODE_RV] = *((uint32_t*) &r);
+    vco.registers[REG_CODE_RV] = *((uint32_t*) &r);
 }
     
 int main1()
@@ -113,30 +113,30 @@ int main1()
         I(RET)
     };
     
-    module mod = module_create(128, 2, 1);
+    core vco = core_create(128, 2, 1);
     
     segment prgm;
     prgm.buffer = prog;
     prgm.size = sizeof(prog) / sizeof(uint32_t);
     prgm.entry = 0;
-    mod.segments[0] = &prgm;
+    vco.segments[0] = &prgm;
     
     segment prgm2;
     prgm2.buffer = prog2;
     prgm2.size = sizeof(prog2) / sizeof(uint32_t);
     prgm2.entry = 0;
-    mod.segments[1] = &prgm2;
+    vco.segments[1] = &prgm2;
     
-    mod.base = 0;
+    vco.base = 0;
     
     hatch test;
     test.entry = inc_hatch;
-    mod.hatches[0] = &test;
+    vco.hatches[0] = &test;
     
-    module_reset(mod);
-    module_run(mod);
+    core_reset(vco);
+    core_run(vco);
     
-    module_free(mod);
+    core_free(vco);
     
     return 0;
 }
@@ -145,6 +145,7 @@ int main1()
 #include "as_lexer.h"
 #include "as_assembler.h"
 #include <fstream>
+#include <cstdio>
 
 int main()
 {
@@ -175,6 +176,10 @@ int main()
     assembler ass = assembler_create(lex);
     module mod = assembler_assemble(ass);
     assembler_free(ass);
+    
+    FILE* f = fopen("sample.bbc", "wb");
+    fwrite(mod.segment, 4, mod.segment_size, f);
+    fclose(f);
     
     return 0;
 }

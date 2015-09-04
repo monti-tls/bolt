@@ -20,9 +20,16 @@
 #include "as_token.h"
 #include <iostream>
 
+//!
+//! as_lexer
+//!
+
+//! This module defines a stream tokenizer for
+//!   Bolt text assembly files.
+//! It is mainly used by the as_assembler module.
+
 namespace as
 {
-    //! The Bolt text assembly file tokenizer.
     //! Here are the allowed tokens :
     //!   comments:   ';' blabla (single line)
     //!
