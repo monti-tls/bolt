@@ -40,7 +40,8 @@ namespace as
         TOKEN_RIGHT_BRACKET,
         TOKEN_OFFSET,
         TOKEN_COMMA,
-        TOKEN_NEWLINE
+        TOKEN_NEWLINE,
+        TOKEN_STRING
     };
     
     //! This is an information structure about where

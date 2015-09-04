@@ -46,6 +46,7 @@ namespace as
     //!                  | ('x' | 'x') xdigit+ ('u' | 'U')?)
     //!   comma:      ','
     //!   newline:    '\n'
+    //!   string:     '"' (character | escape sequence)* '"'
     
     struct lexer
     {

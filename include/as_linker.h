@@ -30,14 +30,14 @@
 //! They are internally stored as 'objects', that just add data fields to modules.
 //! In the first iteration, 'solutions' are extracted for each relocation.
 //! Then, objects are mapped to segments (the one in vm::core), possibly
-//!   discarding unused segments.
+//!   discarding unused objects.
 //! The virtual core is created, code is copied to its segment memory.
 //! Lastly, all solutions are applied (and so the relocations are fixed), and the core
 //!   is ready !
 //!
 //! All those steps in the assembling of multiple modules into a final core
 //!   add a lot of algorithmic complexity to the system, but it ensures
-//!   that faster possible operation.
+//!   the faster operation possible.
 //! Because all function calls are finally mapped to simple offsets, no table
 //!   lookup is needed at runtime.
 

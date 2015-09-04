@@ -24,6 +24,9 @@
 
 namespace as
 {
+    // Forward declarations.
+    static uint32_t assembler_parse_immediate(std::string const& value);
+    
     //FIXME: merge this with the one in as_module.cpp and as_linker.cpp
     //! Grows an array by one element, returning a
     //!   reference to the last value.
@@ -259,6 +262,31 @@ namespace as
                 assembler_parse_error(tok, "symbol \"" + name + "\" is already declared extern");
             
             assembler_add_extern(ass, name);
+        }
+        else if (directive == "data")
+        {
+            while (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+            {
+                token tok = lexer_get(ass.lex);
+                
+                if (tok.type == TOKEN_IMMEDIATE)
+                {
+                    uint32_t imm = assembler_parse_immediate(tok.value);
+                    module_add_word(ass.mod, imm);
+                }
+                else if (tok.type == TOKEN_STRING)
+                {
+                    //TODO: handle strings
+                }
+                else
+                    assembler_parse_error(tok, ".data directive expect either immediate operands or strings");
+                
+                if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+                {
+                    assembler_expect(ass, TOKEN_COMMA, "`,' expected");
+                    lexer_get(ass.lex);
+                }
+            }
         }
         else
             assembler_parse_error(tok, "unknown directive \"" + directive + "\"");

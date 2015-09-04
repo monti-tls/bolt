@@ -283,6 +283,35 @@ namespace as
                     tok.value= value;
                 }
             }
+            // Strings
+            else if (lex.next_char == '"')
+            {
+                lexer_get_char(lex);
+                
+                std::string value = "";
+                bool ok = true;
+                
+                while (ok && lex.next_char != '"')
+                {
+                    if (lex.next_char == '\n' || lex.next_char < 0)
+                        ok = false;
+                    else
+                    {
+                        //TODO: handle escape sequences
+                        value += lexer_get_char(lex);
+                    }
+                }
+                
+                // Eat last double quote
+                if (ok)
+                    lexer_get_char(lex);
+                
+                if (ok)
+                {
+                    tok.type = TOKEN_STRING;
+                    tok.value = value;
+                }
+            }
         }
         
         tok.info = info;
