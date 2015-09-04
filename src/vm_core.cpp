@@ -427,9 +427,9 @@ namespace vm
                 break;
             
             case I_CODE_UCMP:
-                if (u_rhs < u_lhs)
+                if (u_lhs < u_rhs)
                     vco.registers[REG_CODE_PSR] |= PSR_FLAG_N;
-                if (u_rhs == u_lhs)
+                if (u_lhs == u_rhs)
                     vco.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
                 break;
                 
@@ -454,9 +454,9 @@ namespace vm
                 break;
                 
             case I_CODE_ICMP:
-                if (i_rhs < i_lhs)
+                if (i_lhs < i_rhs)
                     vco.registers[REG_CODE_PSR] |= PSR_FLAG_N;
-                if (i_rhs == i_lhs)
+                if (i_lhs == i_rhs)
                     vco.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
                 break;
                 
@@ -481,9 +481,9 @@ namespace vm
                 break;
                 
             case I_CODE_FCMP:
-                if (f_rhs < f_lhs)
+                if (f_lhs < f_rhs)
                     vco.registers[REG_CODE_PSR] |= PSR_FLAG_N;
-                if (f_rhs == f_lhs)
+                if (f_lhs == f_rhs)
                     vco.registers[REG_CODE_PSR] |= PSR_FLAG_Z;
                 break;
                 
@@ -531,13 +531,22 @@ namespace vm
     {
         core vco;
         vco.stack_size = stack_size;
-        vco.stack = new uint32_t[stack_size];
+        if (vco.stack_size)
+            vco.stack = new uint32_t[stack_size];
+        else
+            vco.stack = 0;
         
         vco.segments_size = segments_size;
-        vco.segments = new segment*[segments_size];
+        if (vco.segments_size)
+            vco.segments = new segment*[segments_size];
+        else
+            vco.segments = 0;
         
         vco.hatches_size = hatches_size;
-        vco.hatches = new hatch*[hatches_size];
+        if (vco.hatches_size)
+            vco.hatches = new hatch*[hatches_size];
+        else
+            vco.hatches = 0;
         
         return vco;
     }

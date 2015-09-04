@@ -110,7 +110,7 @@ namespace as
         // Hexadecimal base number
         else if (lex.next_char == 'x' || lex.next_char == 'X')
         {
-            // Get the explicit X qualifier
+            // Get explicit X qualifier
             value += lexer_get_char(lex);
             
             // Get sign if needed
@@ -122,13 +122,13 @@ namespace as
                 return false;
             
             while (std::isxdigit(lex.next_char))
-                value += lex.next_char;
+                value += lexer_get_char(lex);
             
             // Eventual unsigned qualifier
             if (lex.next_char == 'u' || lex.next_char == 'U')
                 value += lexer_get_char(lex);
         }
-        // 
+        // Floating-point number.
         else if (allowF && (lex.next_char == 'f' || lex.next_char == 'F'))
         {
             // Get explicit F qualifier
@@ -139,11 +139,11 @@ namespace as
                 value += lexer_get_char(lex);
             
             // Get value
-            if (!std::isdigit(lex.next_char) || lex.next_char != '.')
+            if (!std::isdigit(lex.next_char) && lex.next_char != '.')
                 return false;
             
             while (std::isdigit(lex.next_char))
-                value += lex.next_char;
+                value += lexer_get_char(lex);
             
             if (lex.next_char == '.')
             {

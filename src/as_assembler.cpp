@@ -65,7 +65,7 @@ namespace as
         throw std::logic_error(ss.str());
     }
     
-    //! Output an error, printing debug information about its location.
+    //! Just output an error.
     static void assembler_error(std::string const& what)
     {
         std::ostringstream ss;
@@ -197,7 +197,7 @@ namespace as
     {
         for (uint32_t i = 0; i < ass.labels_size; ++i)
             if (ass.labels[i].name == name)
-                return ass.labels + 1;
+                return ass.labels + i;
         
         return 0;
     }
@@ -281,10 +281,53 @@ namespace as
         assembler_add_label(ass, name, ass.mod.segment_size);
     }
     
+    //! Parse an immediate string as a floating-point value.
+    static uint32_t assembler_parse_immediate_f(std::string const& value)
+    {
+        float imm = std::stof(value);
+        return *((uint32_t*) &imm);
+    }
+    
+    //! Parse an immediate string as a hexadecimal value.
+    static uint32_t assembler_parse_immediate_x(std::string const& value)
+    {
+        // std::stoi will ignore the eventual unsigned qualifier 'U'
+        int imm = std::stoi(value, 0, 16);
+        
+        if (value.back() == 'u' || value.back() == 'U')
+            return (uint32_t) imm;
+        
+        return *((uint32_t*) & imm);
+    }
+    
+    //! Parse an immediate string as a decimal value.
+    static uint32_t assembler_parse_immediate_d(std::string const& value)
+    {
+        // std::stoi will ignore the eventual unsigned qualifier 'U'
+        int imm = std::stoi(value, 0, 10);
+        
+        if (value.back() == 'u' || value.back() == 'U')
+            return (uint32_t) imm;
+        
+        return *((uint32_t*) & imm);
+    }
+    
     //! Parse an immediate value string and get its uint32_t representation.
     static uint32_t assembler_parse_immediate(std::string const& value)
     {
-        return 0x00000000;
+        switch (value[0])
+        {
+            case 'f':
+            case 'F':
+                return assembler_parse_immediate_f(value.substr(1));
+                
+            case 'x':
+            case 'X':
+                return assembler_parse_immediate_x(value.substr(1));
+                
+            default:
+                return assembler_parse_immediate_d(value);
+        }
     }
     
     //! Parse an operand, adding if needed immediate words to the output module.
@@ -435,6 +478,7 @@ namespace as
         if (hasA)
         {
             instr_word |= a.code << vm::OP_A_CODE_SHIFT;
+            instr_word |= a.value << vm::OP_A_VAL_SHIFT;
             if (a.ind)
                 instr_word |= vm::OP_A_IND;
             if (a.off)
@@ -443,6 +487,7 @@ namespace as
         if (hasB)
         {
             instr_word |= b.code << vm::OP_B_CODE_SHIFT;
+            instr_word |= b.value << vm::OP_B_VAL_SHIFT;
             if (b.ind)
                 instr_word |= vm::OP_B_IND;
             if (b.off)

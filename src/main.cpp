@@ -181,5 +181,22 @@ int main()
     fwrite(mod.segment, 4, mod.segment_size, f);
     fclose(f);
     
+    using namespace vm;
+    
+    core vco = core_create(128, 1, 0);
+    
+    segment prgm;
+    prgm.buffer = mod.segment;
+    prgm.size = mod.segment_size;
+    prgm.entry = mod.entry;
+    vco.segments[0] = &prgm;
+    
+    vco.base = 0;
+    
+    core_reset(vco);
+    core_run(vco);
+    
+    core_free(vco);
+    
     return 0;
 }
