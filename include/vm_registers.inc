@@ -19,18 +19,30 @@
 //!   vm_module.h:  defines the REG_CODE_* constants
 //!   as_layer.cpp: defines the assembler's register names
 
-//! IR:  instruction register
-//! PC:  program counter
-//! SEG: segment register
-//! SP:  stack pointer
-//! PSR: program status register
-//! RV:  return value register
-//! AB:  arguments base register
+//! R0-R9: general purpose registers
+//! IR:    instruction register
+//! PC:    program counter
+//! SEG:   segment register
+//! SP:    stack pointer
+//! PSR:   program status register
+//! RV:    return value register
+//! AB:    arguments base register
 
-DECL_REGISTER(IR,  0x00)
-DECL_REGISTER(SEG, 0x01)
-DECL_REGISTER(PC,  0x02)
-DECL_REGISTER(SP,  0x03)
-DECL_REGISTER(PSR, 0x04)
-DECL_REGISTER(RV,  0x05)
-DECL_REGISTER(AB,  0x06)
+DECL_REGISTER(R0,  0x00)
+DECL_REGISTER(R1,  0x01)
+DECL_REGISTER(R2,  0x02)
+DECL_REGISTER(R3,  0x03)
+DECL_REGISTER(R4,  0x04)
+DECL_REGISTER(R5,  0x05)
+DECL_REGISTER(R6,  0x06)
+DECL_REGISTER(R7,  0x07)
+DECL_REGISTER(R8,  0x08)
+DECL_REGISTER(R9,  0x09)
+
+DECL_REGISTER(IR,  0x0A)
+DECL_REGISTER(SEG, 0x0B)
+DECL_REGISTER(PC,  0x0C)
+DECL_REGISTER(SP,  0x0D)
+DECL_REGISTER(PSR, 0x0E)
+DECL_REGISTER(RV,  0x0F)
+DECL_REGISTER(AB,  0x10)

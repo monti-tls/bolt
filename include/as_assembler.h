@@ -51,7 +51,7 @@ namespace as
     //!   contains words to be fixed when the label is encountered.
     //! A pending label comprises two lists :
     //!   - a list of pointers to fix, used to fix module
-    //!     parameters such as symbol locations or entry point.
+    //!     parameters such as module's entry point.
     //!   - a list of locations to fix, relative to the code segment in the module.
     //! Locations are used for the code segment because of the numerous re-allocations
     //!   performed to resize the buffer, and which would invalidate direct pointers.

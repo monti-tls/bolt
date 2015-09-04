@@ -24,7 +24,7 @@
 
 namespace as
 {
-    //FIXME: merge this with the one in as_module.cpp
+    //FIXME: merge this with the one in as_module.cpp and as_linker.cpp
     //! Grows an array by one element, returning a
     //!   reference to the last value.
     template <typename T>
@@ -111,6 +111,8 @@ namespace as
                 if (ass.pending_labels[i].locations)
                     delete[] ass.pending_labels[i].locations;
             }
+            
+            delete[] ass.pending_labels;
         }
         ass.pending_labels = 0;
         ass.pending_labels_size = 0;
@@ -205,11 +207,9 @@ namespace as
     //! Add a label to the label table.
     static void assembler_add_label(assembler& ass, std::string const& name, uint32_t location)
     {
-        label l;
+        label& l = grow_array(ass.labels_size++, ass.labels);   
         l.name = name;
         l.location = location;
-        
-        grow_array(ass.labels_size++, ass.labels) = l;
     }
     
     //! Parse an assembler directive.
@@ -240,14 +240,10 @@ namespace as
             if (module_find_symbol(ass.mod, symname))
                 assembler_parse_error(tok, "symbol is already exported");
             
-            // Create the new symbol
+            // Create the new symbol, its location will be fixed later
             symbol sym;
             sym.name = symname;
-            symbol& real = module_add_symbol(ass.mod, sym);
-            
-            // Bind the pending label to the real symbol location,
-            //   as module_ass_symbol does a copy !
-            assembler_add_pending_pointer(ass, symname, &real.location);
+            module_add_symbol(ass.mod, sym);
         }
         else if (directive == "extern")
         {
@@ -257,10 +253,10 @@ namespace as
             std::string name = tok.value;
             
             if (module_find_symbol(ass.mod, name))
-                assembler_parse_error(tok, "symbol was declared global earlier");
+                assembler_parse_error(tok, "symbol \"" + name + "\" was declared global earlier");
             
             if (assembler_find_extern(ass, name))
-                assembler_parse_error(tok, "symbol is already declared extern");
+                assembler_parse_error(tok, "symbol \"" + name + "\" is already declared extern");
             
             assembler_add_extern(ass, name);
         }
@@ -448,6 +444,34 @@ namespace as
         //   it owns.
         uint32_t location = module_add_word(ass.mod, instr->icode << vm::I_CODE_SHIFT);
         
+        // Take special care for instruction that accept long jumps
+        if (instr->iflags & I_FLAG_LONG)
+        {
+            // We need to worry only if the operand is an extern symbol
+            if (lexer_seekt(ass.lex) == TOKEN_IDENTIFIER &&
+                assembler_find_extern(ass, lexer_seek(ass.lex).value))
+            {
+                token tok = lexer_get(ass.lex);
+                
+                // Add the segment and location words, to the
+                //   program segment, and get their offsets
+                uint32_t seg = module_add_word(ass.mod, 0);
+                uint32_t loc = module_add_word(ass.mod, 0);
+                // Add the corresponding relocation
+                module_append_relocation(ass.mod, tok.value, seg, loc);
+                
+                // Fix the instruction word and set two immediate operands
+                uint32_t& instr_word = ass.mod.segment[location];
+                instr_word |= vm::OP_CODE_IMM << vm::OP_A_CODE_SHIFT;
+                instr_word |= vm::OP_CODE_IMM << vm::OP_B_CODE_SHIFT;
+                
+                // Get the new line
+                assembler_expect(ass, TOKEN_NEWLINE, "no more operands expected after long jump");
+                lexer_get(ass.lex);
+                return;
+            }
+        }
+        
         // Get the operands, if any
         bool hasA = false;
         bool hasB = false;
@@ -534,10 +558,12 @@ namespace as
     //! Fix pending label references using the label table.
     static void assembler_fix_pending_labels(assembler& ass)
     {
+        // Fix pending locations
         for (uint32_t i = 0; i < ass.pending_labels_size; ++i)
         {
             pending_label* pending = ass.pending_labels + i;
             
+            // Find the associated label
             label* l = assembler_find_label(ass, pending->name);
             if (!l)
                 assembler_error("unresolved label \"" + pending->name + "\"");
@@ -549,6 +575,20 @@ namespace as
             // Fix pending words in the program
             for (uint32_t j = 0; j < pending->locations_size; ++j)
                 ass.mod.segment[pending->locations[j]] = l->location;
+        }
+        
+        // Fix exported (.global) symbol locations
+        for (uint32_t i = 0; i < ass.mod.symbols_size; ++i)
+        {
+            symbol* sym = ass.mod.symbols + i;
+            
+            // Find the associated label
+            label* l = assembler_find_label(ass, sym->name);
+            if (!l)
+                assembler_error("unresolved symbol \"" + sym->name + "\"");
+            
+            // Fix the location
+            sym->location = l->location;
         }
     }
     

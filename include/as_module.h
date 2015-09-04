@@ -29,6 +29,7 @@
 //! It introduces the exported symbols / external dependencies via the symbol
 //!   and relocation tables.
 //! It is the ouput of as_assembler, and input of as_linker.
+//! It mainly defines helper functions to manipulate the tables.
 
 namespace as
 {
@@ -47,7 +48,7 @@ namespace as
     //! The segments and locations arrays (of length count)
     //!   points to the locations that must be
     //!   fixed when linking this module, i.e.
-    //!   CALL pc and seg arguments.
+    //!   CALL's seg and pc arguments.
     struct relocation
     {
         std::string name;
@@ -61,9 +62,9 @@ namespace as
     //!   and probably also rely on other modules through the
     //!   relocation table.
     //! A set of modules must be linked together to form
-    //!   the final vm::segments.
+    //!   the final vm::core.
     //! This basically consist in fixin' the relocations based
-    //!   on other module's export information (see as_link.h).
+    //!   on other module's export information (see as_linker.h).
     struct module
     {
         uint32_t symbols_size;
@@ -102,6 +103,14 @@ namespace as
     
     //! Add a relocation to a module, returning a reference to it.
     relocation& module_add_relocation(module& mod, relocation const& reloc);
+    
+    //! Find a relocation by name.
+    //! Returns 0 if not found.
+    relocation* module_find_relocation(module& mod, std::string const& name);
+    
+    //! Add a relocation entry by name.
+    //! Create the relocation if it does not exists.
+    void module_append_relocation(module& mod, std::string const& name, uint32_t seg, uint32_t loc);
     
     //! Add a word to the module's segment buffer, returning its offset in the buffer.
     uint32_t module_add_word(module& mod, uint32_t word);

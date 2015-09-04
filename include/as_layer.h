@@ -53,6 +53,17 @@ namespace as
         OP_FLAG_OPT  = 0x80000000
     };
     
+    //! Per instruction flags.
+    //!
+    //! NONE: normal instruction
+    //! LONG: instruction can handle a long jump
+    enum : uint32_t
+    {
+        I_FLAG_NONE = 0x00000000,
+        
+        I_FLAG_LONG = 0x00000001
+    };
+    
     //! This file holds a static table of layer_instruction (created
     //!   with vm_instructions.inc) describing the instruction set,
     //!   including instruction mnemonics, codes and allowed operands.
@@ -61,6 +72,7 @@ namespace as
     {
         std::string mnemonic;
         uint32_t icode;
+        uint32_t iflags;
         uint32_t aflags;
         uint32_t bflags;
     };

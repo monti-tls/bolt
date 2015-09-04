@@ -23,7 +23,7 @@ namespace as
     /*** Private implementation section ***/
     /**************************************/
     
-    //FIXME: merge this with the one in as_assembler.cpp
+    //FIXME: merge this with the one in as_assembler.cpp and as_linker.cpp
     //! Grows an array by one element, returning a
     //!   reference to the last value.
     template <typename T>
@@ -131,9 +131,30 @@ namespace as
         return 0;
     }
     
-    relocation& module_add_relocation(module& mod, relocation const& reloc)
+    relocation& module_add_relocation(module& mod, std::string const& name)
     {
-        return (grow_array(mod.relocations_size++, mod.relocations) = reloc);
+        relocation& reloc = grow_array(mod.relocations_size++, mod.relocations);
+        reloc = relocation_create();
+        reloc.name = name;
+        return reloc;
+    }
+    
+    relocation* module_find_relocation(module& mod, std::string const& name)
+    {
+        for (uint32_t i = 0; i < mod.relocations_size; ++i)
+            if (mod.relocations[i].name == name)
+                return mod.relocations + i;
+    
+        return 0;
+    }
+    
+    void module_append_relocation(module& mod, std::string const& name, uint32_t seg, uint32_t loc)
+    {
+        relocation* reloc = module_find_relocation(mod, name);
+        if (!reloc)
+            reloc = &module_add_relocation(mod, name);
+        
+        relocation_append(*reloc, seg, loc);
     }
     
     uint32_t module_add_word(module& mod, uint32_t word)

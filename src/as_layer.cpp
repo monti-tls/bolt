@@ -27,13 +27,16 @@ namespace as
     //! A small flag macro helper, to avoid
     //!   typing OP_FLAG_* everytime.
     #define F(flag) OP_FLAG_ ## flag
+    //! Same for I_FLAG_* constants.
+    #define I(flag) I_FLAG_ ## flag
     //! This macro defines the behavior of the declarations in vm_instructions.inc,
     //!   here we use it to extract mnemonic, icode and operand
     //!   flags data to our iset_entry array.
-    #define DECL_INSTR(group, name, code, a, b) \
+    #define DECL_INSTR(group, name, code, flag, a, b) \
         { \
             .mnemonic = #name, \
             .icode = vm::I_CODE_ ## name, \
+            .iflags = (flag), \
             .aflags = (a), \
             .bflags = (b) \
         },
@@ -45,6 +48,7 @@ namespace as
     
     #undef DECL_INSTR
     #undef F
+    #undef I
     
     //! The length of the above array, used for loops.
     static uint32_t layer_instructions_size = sizeof(layer_instructions)

@@ -63,8 +63,9 @@ namespace vm
     //!   SYS:   the system group:
     //!            HALT: halt the virtual core
     //!            RST:  reset the virtual core
-    //!            DMS:  dump the current stack contents
-    //!            DMR:  dump the current register contents
+    //!            DMS:  dump the current stack contents    <-+
+    //!            DMR:  dump the current register contents   | For debugging purposes
+    //!            DMO:  dump operand                       <-+
     //!
     //!   MEM:   the memory group:
     //!            PUSH <A>:      push A to the stack
@@ -162,7 +163,7 @@ namespace vm
     //! This macro defines the behavior of the definitions in
     //!   vm_instructions.inc, here we discard the last two arguments,
     //!   keeping the first three to craft our handy icode defines.
-    #define DECL_INSTR(group, name, offset, a, b) \
+    #define DECL_INSTR(group, name, offset, f, a, b) \
         I_CODE_ ## name = ((I_GROUP_ ## group << I_GROUP_SHIFT) + (offset)),
     
     enum : uint32_t

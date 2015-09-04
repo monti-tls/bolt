@@ -239,11 +239,10 @@ namespace as
                 }
             }
             // Offset
-            else if (lex.next_char == '+')
+            else if (lex.next_char == '+' || lex.next_char == '-')
             {
-                lexer_get_char(lex);
-                
                 std::string value = "";
+                value += lexer_get_char(lex);
                 if (lexer_get_numeric(lex, value, false))
                 {
                     tok.type = TOKEN_OFFSET;
@@ -263,12 +262,12 @@ namespace as
                 }
             }
             // Labels and identifiers
-            else if (std::isalpha(lex.next_char) || lex.next_char == '_')
+            else if (std::isalpha(lex.next_char) || lex.next_char == '_' || lex.next_char == '$')
             {
                 std::string value = "";
                 
                 value += lexer_get_char(lex);
-                while (std::isalnum(lex.next_char) || lex.next_char == '_')
+                while (std::isalnum(lex.next_char) || lex.next_char == '_' || lex.next_char == '$')
                     value += lexer_get_char(lex);
                 
                 // No space is allowed between label name and semicolon

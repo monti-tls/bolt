@@ -99,7 +99,10 @@ namespace vm
     //!   and hatches fields manually.
     core core_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatchs_size);
     
-    //! Delete a virtual core.
+    //! Free all segments in the virtual core.
+    void core_free_segments(core& vco);
+    
+    //! Delete a virtual core (does *not* frees segments).
     void core_free(core& vco);
     
     //! Reset a virtual core.

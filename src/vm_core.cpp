@@ -192,6 +192,13 @@ namespace vm
                 
             case I_CODE_DMR:
                 std::cout << "Register dump :" << std::endl;
+                for (uint32_t i = REG_CODE_R0; i <= REG_CODE_R9; ++i)
+                {
+                    std::cout << "R" << i - REG_CODE_R0 << ":  ";
+                    std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[i];
+                    std::cout << " (I " << std::dec << *((int32_t*) &vco.registers[i]) << ")";
+                    std::cout << " (F " << *((float*) &vco.registers[i]) << ")" << std::endl;
+                }
                 std::cout << "PC:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_PC] << std::endl;
                 std::cout << "SEG: 0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_SEG] << std::endl;
                 std::cout << "SP:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_SP] << std::endl;
@@ -210,6 +217,15 @@ namespace vm
                 std::cout << "AB:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_AB] << std::endl;
                 std::cout << "---------------" << std::endl;
                 break;
+                
+            case I_CODE_DMO:
+            {
+                uint32_t* a = decode_A(vco);
+                std::cout << std::hex << std::setw(8) << std::setfill('0') << *a;
+                std::cout << " (I " << std::dec << *((int32_t*) a) << ")";
+                std::cout << " (F " << *((float*) a) << ")" << std::endl;
+                break;
+            }
                 
             default:
                 throw std::logic_error("vm::execute_sys: invalid instruction code");
@@ -549,6 +565,12 @@ namespace vm
             vco.hatches = 0;
         
         return vco;
+    }
+    
+    void core_free_segments(core& vco)
+    {
+        for (uint32_t i = 0; i < vco.segments_size; ++i)
+            delete[] vco.segments[i];
     }
     
     void core_free(core& vco)

@@ -34,8 +34,8 @@ namespace as
     //!   comments:   ';' blabla (single line)
     //!
     //!   directives: '.'(alpha_ alnum_*)
-    //!   identifier: (alpha_ alnum_*)
-    //!   label:      (alpha_ alnum_*)':'
+    //!   identifier: (alpha_ alnum_$*)
+    //!   label:      (alpha_ alnum_$*)':'
     //!   register:   '%'(alpha_ alnum_*)
     //!   immediate:  '#'( digit+ ('u' | 'U')?
     //!                  | ('x' | 'x') xdigit+ ('u' | 'U')?

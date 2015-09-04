@@ -32,6 +32,9 @@ $(BINARY): $(OBJECTS)
 run: $(BINARY)
 	@$(BINARY)
 
+check: $(BINARY)
+	@valgrind --tool=memcheck --leak-check=full $(BINARY)
+
 -include $(DEPENDENCIES)
 
 ## Translation rules
