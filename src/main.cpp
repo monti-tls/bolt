@@ -31,6 +31,8 @@ int main()
     
     try
     {
+        /*** Assemble modules ***/
+        
         module mod_lib, mod_main;
     
         {
@@ -51,17 +53,26 @@ int main()
             lexer_free(lex);
         }
         
+        /*** Link modules ***/
+        
         linker ln = linker_create();
         
-        uint32_t lib_id = linker_add_module(ln, mod_lib);
+        linker_add_module(ln, mod_lib);
         uint32_t main_id = linker_add_module(ln, mod_main);
         
         core vco = linker_link(ln, main_id);
-        
+        linker_free_modules(ln);
         linker_free(ln);
         
-        module_free(mod_lib);
-        module_free(mod_main);
+        /*** Run program ***/
+        
+        core_reset(vco);
+        core_run(vco);
+        
+        /*** Release core ***/
+        
+        core_free_segments(vco);
+        core_free(vco);
     }
     catch(std::exception const& exc)
     {

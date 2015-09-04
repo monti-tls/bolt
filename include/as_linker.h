@@ -20,6 +20,27 @@
 #include "as_module.h"
 #include "vm_core.h"
 
+//!
+//! as_linker
+//!
+
+//! This module defines the Bolt program linker.
+//! Multiple assembled modules are first added to the linker,
+//!   specifying the entry one.
+//! They are internally stored as 'objects', that just add data fields to modules.
+//! In the first iteration, 'solutions' are extracted for each relocation.
+//! Then, objects are mapped to segments (the one in vm::core), possibly
+//!   discarding unused segments.
+//! The virtual core is created, code is copied to its segment memory.
+//! Lastly, all solutions are applied (and so the relocations are fixed), and the core
+//!   is ready !
+//!
+//! All those steps in the assembling of multiple modules into a final core
+//!   add a lot of algorithmic complexity to the system, but it ensures
+//!   that faster possible operation.
+//! Because all function calls are finally mapped to simple offsets, no table
+//!   lookup is needed at runtime.
+
 namespace as
 {
     //! A relocation solution, that links a relocation from a module (the applicant)
@@ -27,15 +48,31 @@ namespace as
     struct solution
     {
         std::string symbol_name;
-        uint32_t applicant;
         uint32_t provider;
+    };
+    
+    //! Modules are wrapped in objects,
+    //!   to additional data such as solutions.
+    struct object
+    {
+        module mod;
+        
+        uint32_t solutions_size;
+        solution* solutions;
+        
+        bool used;
+        uint32_t segment_id;
     };
     
     //! The linker structure.
     struct linker
     {
-        uint32_t modules_size;
-        module* modules;
+        uint32_t objects_size;
+        object* objects;
+        
+        uint32_t base_object;
+        uint32_t segments_count;
+        vm::core vco;
     };
     
     //! Create a linker.

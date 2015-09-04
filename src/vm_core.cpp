@@ -570,7 +570,11 @@ namespace vm
     void core_free_segments(core& vco)
     {
         for (uint32_t i = 0; i < vco.segments_size; ++i)
-            delete[] vco.segments[i];
+        {
+            if (vco.segments[i] && vco.segments[i]->buffer)
+                delete[] vco.segments[i]->buffer;
+            delete vco.segments[i];
+        }
     }
     
     void core_free(core& vco)

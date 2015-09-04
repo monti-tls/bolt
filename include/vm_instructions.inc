@@ -14,11 +14,20 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
  
+//!
+//! vm_instructions
+//!
+ 
 //! This file defines the Bolt virtual instruction set.
 //! It is included by several files, namely :
 //!   vm_bytes.h:   defines I_CODE_* constants.
 //!   vm_layer.cpp: instruction set mnemonic maps and
 //!                 allowed operands check flags.
+
+//! Here is the format :
+//!   GROUP NAME value (instr flags) (allowed op A flags) (allowed op B flags)
+//! See as_layer.h for available flags and their meaning.
+//! See vm_bytes.h for additional information about instruction groups and encoding.
 
 DECL_INSTR(SYS,   HALT, 0x01, I(NONE), F(NONE),         F(NONE))
 DECL_INSTR(SYS,   RST,  0x02, I(NONE), F(NONE),         F(NONE))

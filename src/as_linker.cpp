@@ -18,6 +18,8 @@
 #include <stdexcept>
 #include <algorithm>
 
+#include <iostream>
+
 namespace as
 {
     /**************************************/
@@ -42,33 +44,190 @@ namespace as
         return array[size];
     }
     
+    //! Create and init temporary things in the lexer.
+    void linker_temps_create(linker& ln)
+    {
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            ln.objects[i].solutions_size = 0;
+            ln.objects[i].solutions = 0;
+        }
+    }
+    
+    //! Free temporary stuff from the linker (tables, ...).
+    void linker_temps_free(linker& ln)
+    {
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            if (ln.objects[i].solutions)
+                delete[] ln.objects[i].solutions;
+            
+            ln.objects[i].solutions = 0;
+            ln.objects[i].solutions_size = 0;
+        }
+    }
+    
+    //! Add a solution to an object.
+    void linker_object_add_solution(object& obj, solution const& sol)
+    {
+        grow_array(obj.solutions_size++, obj.solutions) = sol;
+    }
+    
     //! Attempt to find a solution to the relocation reloc
     //!   asked by the applicant module.
-    //! The solution is written to sol, and the function returns false
+    //! The solution, if found, is written to sol, and the function returns false
     //!   if it is not found.
     //! It throws an error if multiple solutions are found.
-    bool linker_find_solution(linker& ln, solution& sol, uint32_t applicant, relocation* reloc)
+    bool linker_find_solution_for(linker& ln, solution& sol, uint32_t applicant, relocation* reloc)
     {
         bool found = false;
         
-        for (uint32_t i = 0; i < ln.modules_size; ++i)
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
         {
             if (i == applicant)
                 break;
             
-            if (module_find_symbol(ln.modules[i], reloc->name))
+            if (module_find_symbol(ln.objects[i].mod, reloc->name))
             {
                 if (found)
-                    throw std::logic_error("as::linker_find_solution: symbol `" + reloc->name + "' is multiply defined");
+                    throw std::logic_error("as::linker_find_solution_for: symbol `" + reloc->name + "' is multiply defined");
                 
                 found = true;
                 sol.symbol_name = reloc->name;
-                sol.applicant = applicant;
                 sol.provider = i;
             }
         }
         
         return found;
+    }
+    
+    //! Find all solutions to all relocations in all objects.
+    //! Oh my ! So much 'all'...
+    void linker_find_solutions(linker& ln)
+    {
+        // For each object, resolve its relocations
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            object& obj = ln.objects[i];
+            
+            // For each relocation
+            for (uint32_t j = 0; j < obj.mod.relocations_size; ++j)
+            {
+                relocation& reloc = obj.mod.relocations[j];
+                
+                // Find the solution
+                solution sol;
+                if (!linker_find_solution_for(ln, sol, i, &reloc))
+                    throw std::logic_error("linker_find_solutions: could not resolve symbol `" + reloc.name + "'");
+                
+                // Add it to the solutions table
+                linker_object_add_solution(obj, sol);
+            }
+        }
+    }
+    
+    //! Assign segments number to objects, skipping those
+    //!   who are unused.
+    //! This updates ln.objects[i].used and ln.segment_count.
+    void linker_assign_segments(linker& ln)
+    {
+        uint32_t segment = 0;
+        
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            object& obj = ln.objects[i];
+            obj.used = false;
+            
+            // Determine if object is used
+            // It is if this is our base object !
+            if (i == ln.base_object)
+                obj.used = true;
+            // It is if it has solutions itself
+            if (!obj.used && obj.solutions)
+                obj.used = true;
+            // Look if another module is relying on a symbol from this one
+            for (uint32_t j = 0; !obj.used && j < ln.objects_size; ++j)
+            {
+                if (j == i)
+                    continue;
+                
+                for (uint32_t k = 0; k < ln.objects[j].solutions_size; ++k)
+                {
+                    if (ln.objects[j].solutions[k].provider == i)
+                    {
+                        obj.used = true;
+                        break;
+                    }
+                }
+            }
+            
+            // If the object is not used, don't assign him a segment id
+            if (!obj.used)
+                continue;
+            
+            // Assign next segment id
+            obj.segment_id = segment++;
+        }
+        
+        ln.segments_count = segment;
+    }
+    
+    //! Copy each used object's code into virtual core segment memory.
+    void linker_copy_segments(linker& ln)
+    {
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            object& obj = ln.objects[i];
+            if (!obj.used)
+                continue;
+            
+            // Create the new VCO's segment
+            vm::segment* seg = new vm::segment;
+            seg->size = obj.mod.segment_size;
+            seg->buffer = new uint32_t[seg->size];
+            seg->entry = obj.mod.entry;
+            
+            // Copy program code
+            std::copy_n(obj.mod.segment, seg->size, seg->buffer);
+            
+            // Register it in the VCO
+            ln.vco.segments[obj.segment_id] = seg;
+        }
+    }
+    
+    //! Apply all solutions.
+    void linker_apply_solutions(linker& ln)
+    {
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            object& obj = ln.objects[i];
+            if (!obj.used)
+                continue;
+            
+            for (uint32_t j = 0; j < obj.solutions_size; ++j)
+            {
+                // Take the solution
+                solution& sol = obj.solutions[j];
+                // Take the provider object
+                object& provider_obj = ln.objects[sol.provider];
+                
+                // Fetch the associated relocation
+                relocation* reloc = module_find_relocation(obj.mod, sol.symbol_name);
+                
+                // Get the resolved symbol's location from the provider module
+                symbol* sym = module_find_symbol(provider_obj.mod, sol.symbol_name);
+                
+                // Get this module's associated segment memory
+                uint32_t* segment = ln.vco.segments[obj.segment_id]->buffer;
+                
+                // Fix the relocation, segment operand and target PC operand
+                for (uint32_t k = 0; k < reloc->count; ++k)
+                {
+                    segment[reloc->segments[k]] = provider_obj.segment_id;
+                    segment[reloc->locations[k]] = sym->location;
+                }
+            }
+        }
     }
     
     /*************************/
@@ -79,46 +238,74 @@ namespace as
     {
         linker ln;
         
-        ln.modules_size = 0;
-        ln.modules = 0;
+        ln.objects_size = 0;
+        ln.objects = 0;
         
         return ln;
     }
     
     void linker_free_modules(linker& ln)
     {
-        for (uint32_t i = 0; i < ln.modules_size; ++i)
-            module_free(ln.modules[i]);
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+            module_free(ln.objects[i].mod);
     }
     
     void linker_free(linker& ln)
     {
-        if (ln.modules)
-            delete[] ln.modules;
-        ln.modules = 0;
-        ln.modules_size = 0;
+        if (ln.objects)
+        {
+            for (uint32_t i = 0; i < ln.objects_size; ++i)
+                if (ln.objects[i].solutions)
+                    delete[] ln.objects[i].solutions;
+                
+            delete[] ln.objects;
+        }
+        ln.objects = 0;
+        ln.objects_size = 0;
     }
     
     uint32_t linker_add_module(linker& ln, module const& mod)
     {
-        grow_array(ln.modules_size, ln.modules) = mod;
-        return ln.modules_size++;
+        object& obj = grow_array(ln.objects_size, ln.objects);
+        obj.mod = mod;
+        obj.solutions_size = 0;
+        obj.solutions = 0;
+        
+        return ln.objects_size++;
     }
     
     vm::core linker_link(linker& ln, uint32_t base)
     {
-        for (uint32_t i = 0; i < ln.modules_size; ++i)
-        {
-            module& mod = ln.modules[i];
-            
-            for (uint32_t j = 0; j < mod.relocations_size; ++j)
-            {
-                relocation& reloc = mod.relocations[j];
-                
-                solution sol;
-                if (!linker_find_solution(ln, sol, i, &reloc))
-                    throw std::logic_error("linker_link: could not resolve symbol `" + reloc.name + "'");
-            }
-        }
+        // Init temp stuff
+        linker_temps_create(ln);
+        
+        // Set up the base object id so other functions can see it
+        // (notably assign_segments that could mark it as unused)
+        ln.base_object = base;
+        
+        // Find all solutions to all relocations
+        linker_find_solutions(ln);
+        
+        // Assign segment numbers, discard unused modules
+        linker_assign_segments(ln);
+        
+        // Create the output virtual core
+        //FIXME: determine stack size automatically !
+        //TODO: handle hatches in the whole toolchain
+        ln.vco = vm::core_create(1024, ln.segments_count, 0);
+        
+        // Copy all code segments in virtual core's segment memory
+        linker_copy_segments(ln);
+        
+        // Apply all solutions
+        linker_apply_solutions(ln);
+        
+        // Set VCO's base segment
+        ln.vco.base = ln.objects[ln.base_object].segment_id;
+        
+        // Release temporaries
+        linker_temps_free(ln);
+        
+        return ln.vco;
     }
 }

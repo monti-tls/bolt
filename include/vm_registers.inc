@@ -13,6 +13,10 @@
  * You should have received a copy of the GNU General Public License
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+//!
+//! vm_registers
+//!
  
 //! This file defines the Bolt virtual core's register set.
 //! It is included  by :

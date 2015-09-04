@@ -19,6 +19,23 @@
 
 #include "vm_bytes.h"
 
+//!
+//! vm_core
+//!
+
+//! This file defines the heart of bolt, its virtual machine (called
+//!   a virtual core here.
+//! A virtual core contains a stack, registers and a program memory, splitted in segments.
+//! Each virtual core emulates a physical CPU core.
+//! It has its own register bank and stack memory.
+//! It is possible to execute code from another program
+//! (that may be dynamically loaded for example) by using the segments
+//! table.
+//! The SEG register contains the segment from within the current program
+//!   originates.
+//! It is saved and restored upon CALL and RET instructions and therefore
+//!   one can easily call a function residing in another segment.
+
 namespace vm
 {
     //! This macro defines the behavior of the declarations
@@ -69,15 +86,6 @@ namespace vm
         void(*entry)(core& vco);
     };
     
-    //! Each VM core emulates a physical CPU core.
-    //! It has its own register bank and stack memory.
-    //! It is possible to execute code from another program
-    //! (that may be dynamically loaded for example) by using the segments
-    //! table.
-    //! The SEG register contains the segment from within the current program
-    //!   originates.
-    //! It is saved and restored upon CALL and RET instructions and therefore
-    //!   one can easily call a function residing in another segment.
     //! The base field is the index of the initial segment (it inits the SEG
     //!   register upon reset).
     struct core
