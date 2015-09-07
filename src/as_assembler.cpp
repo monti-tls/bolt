@@ -276,7 +276,11 @@ namespace as
                 }
                 else if (tok.type == TOKEN_STRING)
                 {
-                    //TODO: handle strings
+                    // Chars are 32-bits
+                    for (unsigned int i = 0; i < tok.value.size(); ++i)
+                        module_add_word(ass.mod, tok.value[i]);
+                    // String are NULL-terminated
+                    module_add_word(ass.mod, 0);
                 }
                 else
                     assembler_parse_error(tok, ".data directive expect either immediate operands or strings");

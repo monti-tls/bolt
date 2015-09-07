@@ -37,7 +37,7 @@ namespace vm
     //! Access the module's memory at the given address.
     static uint32_t* mem_access(core& vco, uint32_t addr)
     {
-        if (addr > vco.stack_size)
+        if (addr > vco.stack_size + vco.heap_size)
             throw std::runtime_error("vm::mem_access: address out of bounds");
         
         return vco.stack + addr;
@@ -175,7 +175,7 @@ namespace vm
                 
             case I_CODE_DMS:
                 std::cout << "Stack dump :" << std::endl;
-                if (vco.registers[REG_CODE_SP] >= vco.stack_size)
+                if (vco.registers[REG_CODE_SP] >= vco.stack_size + vco.heap_size)
                 {
                     std::cout << "<corrupted SP>" << std::endl;
                     break;
@@ -215,6 +215,7 @@ namespace vm
                 std::cout << " (I " << std::dec << *((int32_t*) &vco.registers[REG_CODE_RV]) << ")";
                 std::cout << " (F " << *((float*) &vco.registers[REG_CODE_RV]) << ")" << std::endl;
                 std::cout << "AB:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_AB] << std::endl;
+                std::cout << "HB:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_HB] << std::endl;
                 std::cout << "---------------" << std::endl;
                 break;
                 
@@ -255,12 +256,42 @@ namespace vm
                     *a = value;
                 break;
             }
+            
+            case I_CODE_DUP:
+            {
+                uint32_t top = stack_pop(vco);
+                stack_push(vco, top);
+                stack_push(vco, top);
+                break;
+            }
                 
             case I_CODE_MOV:
                 if (!a || !b)
                     throw std::logic_error("vm::execute_mem: expected two operands in MOV");
                 *a = *b;
                 break;
+                
+            case I_CODE_LOAD:
+            {
+                uint32_t addr;
+                
+                if (a)
+                    addr = *a;
+                else
+                    addr = stack_pop(vco);
+                
+                uint32_t seg = vco.registers[REG_CODE_SEG];
+                if (b)
+                    seg = *b;
+                
+                if (seg >= vco.segments_size)
+                    throw std::logic_error("vm::execute_mem: bad segment in LOAD");
+                if (addr >= vco.segments[seg]->size)
+                    throw std::logic_error("vm::execute_mem: bad program address in LOAD");
+                
+                stack_push(vco, vco.segments[seg]->buffer[addr]);
+                break;
+            }
                 
             default:
                 throw std::logic_error("vm::execute_mem: invalid instruction code");
@@ -543,12 +574,13 @@ namespace vm
     /*** Public module API ***/
     /*************************/
     
-    core core_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatches_size)
+    core core_create(uint32_t stack_size, uint32_t heap_size, uint32_t segments_size, uint32_t hatches_size)
     {
         core vco;
         vco.stack_size = stack_size;
+        vco.heap_size = heap_size;
         if (vco.stack_size)
-            vco.stack = new uint32_t[stack_size];
+            vco.stack = new uint32_t[stack_size + heap_size];
         else
             vco.stack = 0;
         
@@ -593,6 +625,7 @@ namespace vm
             delete[] vco.stack;
         vco.stack = 0;
         vco.stack_size = 0;
+        vco.heap_size = 0;
     }
     
     void core_reset(core& vco)
@@ -601,6 +634,7 @@ namespace vm
         vco.registers[REG_CODE_PC] = vco.segments[vco.registers[REG_CODE_SEG]]->entry;
         vco.registers[REG_CODE_SP] = 0;
         vco.registers[REG_CODE_PSR] = PSR_FLAG_NONE;
+        vco.registers[REG_CODE_HB] = vco.stack_size;
     }
     
     void core_run(core& vco)

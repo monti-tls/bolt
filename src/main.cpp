@@ -24,6 +24,12 @@ void print_hatch(vm::core& vco)
     print(*((unsigned int*) arg0), *((unsigned int*) arg1));
 }
 
+void printch(int ch)
+{ std::cout << (char) ch; }
+
+void h_printch(vm::core& vco)
+{ printch(*((int*) vco.stack + vco.registers[vm::REG_CODE_SP]-1)); }
+
 int main()
 {
     using namespace as;

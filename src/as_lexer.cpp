@@ -297,8 +297,23 @@ namespace as
                         ok = false;
                     else
                     {
-                        //TODO: handle escape sequences
-                        value += lexer_get_char(lex);
+                        int ch = lexer_get_char(lex);
+                        if (ch == '\\')
+                        {
+                            ch = lexer_get_char(lex);
+                            switch (ch)
+                            {
+                                case '\\': ch = '\\'; break;
+                                case '"':  ch = '"';  break;
+                                case 'n':  ch = '\n'; break;
+                                case 't':  ch = '\t'; break;
+                                case 'r':  ch = '\r'; break;
+                                
+                                default: ok = false;
+                            }
+                        }
+                        
+                        value += ch;
                     }
                 }
                 

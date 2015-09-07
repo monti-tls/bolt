@@ -291,8 +291,9 @@ namespace as
         
         // Create the output virtual core
         //FIXME: determine stack size automatically !
+        //FIXME: determine heap size automatically !
         //TODO: handle hatches in the whole toolchain
-        ln.vco = vm::core_create(1024, ln.segments_count, 0);
+        ln.vco = vm::core_create(1024, 1024, ln.segments_count, 0);
         
         // Copy all code segments in virtual core's segment memory
         linker_copy_segments(ln);

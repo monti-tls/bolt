@@ -37,7 +37,9 @@ DECL_INSTR(SYS,   DMO,  0x05, I(NONE), F(ALL),          F(NONE))
                                                
 DECL_INSTR(MEM,   PUSH, 0x01, I(NONE), F(ALL),          F(NONE))
 DECL_INSTR(MEM,   POP,  0x02, I(NONE), F(ALL) | F(OPT), F(NONE))
-DECL_INSTR(MEM,   MOV,  0x03, I(NONE), F(ALL),          F(ALL))
+DECL_INSTR(MEM,   DUP,  0x03, I(NONE), F(NONE),         F(NONE))
+DECL_INSTR(MEM,   MOV,  0x04, I(NONE), F(ALL),          F(ALL))
+DECL_INSTR(MEM,   LOAD, 0x05, I(LONG), F(ALL) | F(OPT), F(ALL) | F(OPT))
                                                
 DECL_INSTR(FLOW,  CALL, 0x01, I(LONG), F(ALL),          F(ALL) | F(OPT))
 DECL_INSTR(FLOW,  RET,  0x02, I(NONE), F(NONE),         F(NONE))

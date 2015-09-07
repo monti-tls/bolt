@@ -30,7 +30,9 @@
 //! SP:    stack pointer
 //! PSR:   program status register
 //! RV:    return value register
-//! AB:    arguments base register
+//! AB:    arguments base register, contains the base address of the arguments when in a called function
+//! HB:    heap base register, contains the heap's base address (i.e. the end of the stack)
+//!        you can modify this but this is tricky
 
 DECL_REGISTER(R0,  0x00)
 DECL_REGISTER(R1,  0x01)
@@ -50,3 +52,4 @@ DECL_REGISTER(SP,  0x0D)
 DECL_REGISTER(PSR, 0x0E)
 DECL_REGISTER(RV,  0x0F)
 DECL_REGISTER(AB,  0x10)
+DECL_REGISTER(HB,  0x11)

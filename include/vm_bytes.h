@@ -68,9 +68,13 @@ namespace vm
     //!            DMO:  dump operand                       <-+
     //!
     //!   MEM:   the memory group:
-    //!            PUSH <A>:      push A to the stack
-    //!            POP  <A>:      pop A from the stack
-    //!            MOV  <A>, <B>: move B's value to A
+    //!            PUSH <A>:          push A to the stack
+    //!            POP  <A>:          pop A from the stack
+    //!            DUP:               duplicate the value on top of the stack
+    //!            MOV  <A>, <B>:     move B's value to A
+    //!            LOAD [<A>, [<B>]]: push the word at the address A in program memory
+    //!                               take from from the segment B if specified (if no operands,
+    //!                               address is taken from the stack and from current segment).
     //!
     //!   FLOW:  the program flow control group:
     //!            CALL <A>:      call the function starting at A's address

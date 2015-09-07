@@ -35,6 +35,13 @@
 //!   originates.
 //! It is saved and restored upon CALL and RET instructions and therefore
 //!   one can easily call a function residing in another segment.
+//!
+//! There are two memory spaces :
+//!  - the program memory, organized into segments
+//!  - the stack and heap memory, accessible from any segment
+//! The stack and heap are stored in the same buffer, the register SP hold the current
+//!   address of the stack's top, while the HB register hold the first valid heap address
+//!   (if not modified).
 
 namespace vm
 {
@@ -91,6 +98,7 @@ namespace vm
     struct core
     {
         uint32_t stack_size;
+        uint32_t heap_size;
         uint32_t segments_size;
         uint32_t hatches_size;
         uint32_t base;
@@ -105,7 +113,7 @@ namespace vm
     //! Create a virtual core.
     //! Note that you are responsible of setting the segments
     //!   and hatches fields manually.
-    core core_create(uint32_t stack_size, uint32_t segments_size, uint32_t hatchs_size);
+    core core_create(uint32_t stack_size, uint32_t heap_size, uint32_t segments_size, uint32_t hatchs_size);
     
     //! Free all segments in the virtual core.
     void core_free_segments(core& vco);
