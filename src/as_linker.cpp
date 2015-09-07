@@ -51,12 +51,30 @@ namespace as
         {
             ln.objects[i].solutions_size = 0;
             ln.objects[i].solutions = 0;
+            ln.objects[i].used = false;
+        }
+        
+        for (uint32_t i = 0; i < ln.hatch_entries_size; ++i)
+        {
+            ln.hatch_entries[i].solutions_size = 0;
+            ln.hatch_entries[i].solutions = 0;
+            ln.hatch_entries[i].used = false;
         }
     }
     
     //! Free temporary stuff from the linker (tables, ...).
     void linker_temps_free(linker& ln)
     {
+        for (uint32_t i = 0; i < ln.hatch_entries_size; ++i)
+        {
+            if (ln.hatch_entries[i].solutions)
+                delete[] ln.hatch_entries[i].solutions;
+            
+            ln.hatch_entries[i].solutions = 0;
+            ln.hatch_entries[i].solutions_size = 0;
+            ln.hatch_entries[i].used = false;
+        }
+        
         for (uint32_t i = 0; i < ln.objects_size; ++i)
         {
             if (ln.objects[i].solutions)
@@ -64,6 +82,7 @@ namespace as
             
             ln.objects[i].solutions = 0;
             ln.objects[i].solutions_size = 0;
+            ln.objects[i].used = false;
         }
     }
     
@@ -230,6 +249,91 @@ namespace as
         }
     }
     
+    //! Find an exposed hatch entry by name.
+    //! Returns 0 if not found.
+    hatch_entry* linker_find_hatch(linker& ln, std::string const& name)
+    {
+        for (uint32_t i = 0; i < ln.hatch_entries_size; ++i)
+            if (ln.hatch_entries[i].hatch.name == name)
+                return ln.hatch_entries + i;
+        
+        return 0;
+    }
+    
+    void linker_add_hatch_solution(hatch_entry* hte, uint32_t seg, uint32_t loc)
+    {
+        hatch_solution& solution = grow_array(hte->solutions_size++, hte->solutions);
+        solution.segment_id = seg;
+        solution.location = loc;
+    }
+    
+    //! Resolve all hatch references from all modules.
+    void linker_resolve_hatch_references(linker& ln)
+    {
+        uint32_t hatch = 0;
+        
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            object& obj = ln.objects[i];
+            if (!obj.used)
+                continue;
+            
+            for (uint32_t j = 0; j < obj.mod.hatch_references_size; ++j)
+            {
+                hatch_reference& ref = obj.mod.hatch_references[j];
+                
+                // Find the associated entry
+                hatch_entry* hte = linker_find_hatch(ln, ref.name);
+                if (!hte)
+                    throw std::logic_error("as::linker_resolve_hatch_references: could not resolve hatch `" + ref.name + "'");
+                
+                // If not yet used, give it an id
+                if (!hte->used)
+                {
+                    hte->hatch_id = hatch++;
+                    hte->used = true;
+                }
+                
+                // Add the solution to the list
+                for (uint32_t k = 0; k < ref.count; ++k)
+                    linker_add_hatch_solution(hte, obj.segment_id, ref.locations[k]);
+            }
+        }
+        
+        ln.hatches_count = hatch;
+    }
+    
+    void linker_apply_hatch_solutions(linker& ln)
+    {
+        for (uint32_t i = 0; i < ln.hatch_entries_size; ++i)
+        {
+            hatch_entry& hte = ln.hatch_entries[i];
+            if (!hte.used)
+                break;
+            
+            for (uint32_t j = 0; j < hte.solutions_size; ++j)
+            {
+                hatch_solution& solution = hte.solutions[j];
+                
+                // Apply the solution by fixing segment memory
+                ln.vco.segments[solution.segment_id]->buffer[solution.location] = hte.hatch_id;
+            }
+        }
+    }
+    
+    void linker_copy_hatches(linker& ln)
+    {
+        for (uint32_t i = 0; i < ln.hatch_entries_size; ++i)
+        {
+            hatch_entry& hte = ln.hatch_entries[i];
+            if (!hte.used)
+                break;
+            
+            // Copy the hatch structure into the VCO's hatch table
+            ln.vco.hatches[hte.hatch_id] = new vm::hatch(hte.hatch);
+        }
+    }
+    
     /*************************/
     /*** Public module API ***/
     /*************************/
@@ -240,6 +344,9 @@ namespace as
         
         ln.objects_size = 0;
         ln.objects = 0;
+        
+        ln.hatch_entries_size = 0;
+        ln.hatch_entries = 0;
         
         return ln;
     }
@@ -253,15 +360,14 @@ namespace as
     void linker_free(linker& ln)
     {
         if (ln.objects)
-        {
-            for (uint32_t i = 0; i < ln.objects_size; ++i)
-                if (ln.objects[i].solutions)
-                    delete[] ln.objects[i].solutions;
-                
             delete[] ln.objects;
-        }
         ln.objects = 0;
         ln.objects_size = 0;
+        
+        if (ln.hatch_entries)
+            delete[] ln.hatch_entries;
+        ln.hatch_entries = 0;
+        ln.hatch_entries_size = 0;
     }
     
     uint32_t linker_add_module(linker& ln, module const& mod)
@@ -274,13 +380,21 @@ namespace as
         return ln.objects_size++;
     }
     
+    void linker_add_hatch(linker& ln, vm::hatch const& hatch)
+    {
+        hatch_entry& hte = grow_array(ln.hatch_entries_size++, ln.hatch_entries);
+        hte.hatch = hatch;
+        hte.solutions_size = 0;
+        hte.solutions = 0;
+    }
+    
     vm::core linker_link(linker& ln, uint32_t base)
     {
         // Init temp stuff
         linker_temps_create(ln);
         
         // Set up the base object id so other functions can see it
-        // (notably assign_segments that could mark it as unused)
+        //   (notably assign_segments, that could mark it as unused otherwise)
         ln.base_object = base;
         
         // Find all solutions to all relocations
@@ -289,17 +403,25 @@ namespace as
         // Assign segment numbers, discard unused modules
         linker_assign_segments(ln);
         
+        // Resolt hatch references
+        linker_resolve_hatch_references(ln);
+        
         // Create the output virtual core
         //FIXME: determine stack size automatically !
         //FIXME: determine heap size automatically !
-        //TODO: handle hatches in the whole toolchain
-        ln.vco = vm::core_create(1024, 1024, ln.segments_count, 0);
+        ln.vco = vm::core_create(1024, 1024, ln.segments_count, ln.hatches_count);
         
         // Copy all code segments in virtual core's segment memory
         linker_copy_segments(ln);
         
         // Apply all solutions
         linker_apply_solutions(ln);
+        
+        // Copy hatches to VCO's memory
+        linker_copy_hatches(ln);
+        
+        // Apply hatch solutions to segment memory
+        linker_apply_hatch_solutions(ln);
         
         // Set VCO's base segment
         ln.vco.base = ln.objects[ln.base_object].segment_id;

@@ -52,7 +52,7 @@ namespace as
     };
     
     //! Modules are wrapped in objects,
-    //!   to additional data such as solutions.
+    //!   to add additional data such as solutions, segment id, etc.
     struct object
     {
         module mod;
@@ -64,14 +64,42 @@ namespace as
         uint32_t segment_id;
     };
     
+    //! A hatch reference solution, containing the segment id and
+    //!   the location of the word to fix.
+    struct hatch_solution
+    {
+        uint32_t segment_id;
+        uint32_t location;
+    };
+    
+    //! An exposed hatch entry.
+    struct hatch_entry
+    {
+        vm::hatch hatch;
+        
+        uint32_t solutions_size;
+        hatch_solution* solutions;
+        
+        bool used;
+        uint32_t hatch_id;
+    };
+    
     //! The linker structure.
     struct linker
     {
         uint32_t objects_size;
         object* objects;
         
+        uint32_t hatch_entries_size;
+        hatch_entry* hatch_entries;
+        
+        //! Id. of entry object.
         uint32_t base_object;
+        //! Number of used segments.
         uint32_t segments_count;
+        //! Number of used hatches.
+        uint32_t hatches_count;
+        //! Production core.
         vm::core vco;
     };
     
@@ -86,6 +114,9 @@ namespace as
     
     //! Add a module to a linker, returning its id.
     uint32_t linker_add_module(linker& ln, module const& mod);
+    
+    //! Expose a hatch to the linker.
+    void linker_add_hatch(linker& ln, vm::hatch const& hatch);
     
     //! Link all modules added to the linker and
     //!   create a virtual core containing the linked program.

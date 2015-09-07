@@ -609,6 +609,12 @@ namespace vm
         }
     }
     
+    void core_free_hatches(core& vco)
+    {
+        for (uint32_t i = 0; i < vco.hatches_size; ++i)
+            delete vco.hatches[i];
+    }
+    
     void core_free(core& vco)
     {
         if (vco.hatches)

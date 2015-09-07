@@ -77,12 +77,40 @@ namespace as
         ++reloc.count;
     }
     
+    hatch_reference hatch_reference_create()
+    {
+        hatch_reference ref;
+        ref.name = "";
+        
+        ref.count = 0;
+        ref.locations = 0;
+        
+        return ref;
+    }
+    
+    void hatch_reference_free(hatch_reference& ref)
+    {
+        if (ref.count)
+            delete[] ref.locations;
+        
+        ref.count = 0,
+        ref.locations = 0;
+    }
+    
+    void hatch_reference_append(hatch_reference& ref, uint32_t loc)
+    {
+        grow_array(ref.count++, ref.locations) = loc;
+    }
+    
     module module_create()
     {
         module mod;
         
         mod.symbols_size = 0;
         mod.symbols = 0;
+        
+        mod.hatch_references_size = 0;
+        mod.hatch_references = 0;
         
         mod.relocations_size = 0;
         mod.relocations = 0;
@@ -101,6 +129,15 @@ namespace as
             delete[] mod.segment;
         mod.segment = 0;
         mod.segment_size = 0;
+        
+        if (mod.hatch_references)
+        {
+            for (uint32_t i = 0; i < mod.hatch_references_size; ++i)
+                hatch_reference_free(mod.hatch_references[i]);
+            delete[] mod.hatch_references;
+        }
+        mod.hatch_references = 0;
+        mod.hatch_references_size = 0;
         
         if (mod.relocations)
         {
@@ -155,6 +192,32 @@ namespace as
             reloc = &module_add_relocation(mod, name);
         
         relocation_append(*reloc, seg, loc);
+    }
+    
+    hatch_reference& module_add_hatch_reference(module& mod, std::string const& name)
+    {
+        hatch_reference& ref = grow_array(mod.hatch_references_size++, mod.hatch_references);
+        ref = hatch_reference_create();
+        ref.name = name;
+        return ref;
+    }
+    
+    hatch_reference* module_find_hatch_reference(module& mod, std::string const& name)
+    {
+        for (uint32_t i = 0; i < mod.hatch_references_size; ++i)
+            if (mod.hatch_references[i].name == name)
+                return mod.hatch_references + i;
+    
+        return 0;
+    }
+    
+    void module_append_hatch_reference(module& mod, std::string const& name, uint32_t loc)
+    {
+        hatch_reference* ref = module_find_hatch_reference(mod, name);
+        if (!ref)
+            ref = &module_add_hatch_reference(mod, name);
+        
+        hatch_reference_append(*ref, loc);
     }
     
     uint32_t module_add_word(module& mod, uint32_t word)

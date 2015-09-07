@@ -3,5 +3,3 @@ build
 bin/*
 build/*
 .ycm_extra_conf.pyc
-scratch
-scratch/*

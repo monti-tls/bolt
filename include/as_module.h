@@ -57,6 +57,16 @@ namespace as
         uint32_t* locations;
     };
     
+    //! A pending hatch reference.
+    //! DIVE instructions will produce those, that will be
+    //!   fixed at link time.
+    struct hatch_reference
+    {
+        std::string name;
+        uint32_t count;
+        uint32_t* locations;
+    };
+    
     //! An assembled module, that comes from a single Bolt assembly file.
     //! It eventually exports symbols through the symbol table,
     //!   and probably also rely on other modules through the
@@ -73,6 +83,9 @@ namespace as
         uint32_t relocations_size;
         relocation* relocations;
         
+        uint32_t hatch_references_size;
+        hatch_reference* hatch_references;
+        
         uint32_t segment_size;
         uint32_t* segment;
         
@@ -87,6 +100,15 @@ namespace as
     
     //! Add an entry in a relocation.
     void relocation_append(relocation& reloc, uint32_t seg, uint32_t loc);
+    
+    //! Create a hatch reference.
+    hatch_reference hatch_reference_create();
+    
+    //! Delete a hatch reference.
+    void hatch_reference_free(hatch_reference& ref);
+    
+    //! Add an entry in a hatch reference.
+    void hatch_reference_append(hatch_reference& ref, uint32_t loc);
     
     //! Create an empty module.
     module module_create();
@@ -111,6 +133,18 @@ namespace as
     //! Add a relocation entry by name.
     //! Create the relocation if it does not exists.
     void module_append_relocation(module& mod, std::string const& name, uint32_t seg, uint32_t loc);
+    
+    //! Add a hatch reference.
+    //! Returns a reference to the created structure.
+    hatch_reference& module_add_hatch_reference(module& mod, std::string const& name);
+    
+    //! Find a hatch reference by name.
+    //! Returns 0 if not found.
+    hatch_reference* module_find_hatch_reference(module& mod, std::string const& name);
+    
+    //! Add a hatch reference entry by name.
+    //! Create the hatch reference if it does not exists.
+    void module_append_hatch_reference(module& mod, std::string const& name, uint32_t loc);
     
     //! Add a word to the module's segment buffer, returning its offset in the buffer.
     uint32_t module_add_word(module& mod, uint32_t word);

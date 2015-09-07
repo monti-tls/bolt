@@ -18,6 +18,7 @@
 #define BOLT_VM_CORE_H
 
 #include "vm_bytes.h"
+#include <string>
 
 //!
 //! vm_core
@@ -90,6 +91,7 @@ namespace vm
     struct core;
     struct hatch
     {
+        std::string name;
         void(*entry)(core& vco);
     };
     
@@ -118,7 +120,10 @@ namespace vm
     //! Free all segments in the virtual core.
     void core_free_segments(core& vco);
     
-    //! Delete a virtual core (does *not* frees segments).
+    //! Free all hatches in the virtual core.
+    void core_free_hatches(core& vco);
+    
+    //! Delete a virtual core (does *not* frees segments, nor hatches).
     void core_free(core& vco);
     
     //! Reset a virtual core.

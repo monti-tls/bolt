@@ -55,13 +55,15 @@ namespace as
     
     //! Per instruction flags.
     //!
-    //! NONE: normal instruction
-    //! LONG: instruction can handle a long jump
+    //! NONE:  normal instruction
+    //! LONG:  instruction can handle a long jump
+    //! HATCH: instruction can accept a hatch id
     enum : uint32_t
     {
-        I_FLAG_NONE = 0x00000000,
+        I_FLAG_NONE  = 0x00000000,
         
-        I_FLAG_LONG = 0x00000001
+        I_FLAG_LONG  = 0x00000001,
+        I_FLAG_HATCH = 0x00000002
     };
     
     //! This file holds a static table of layer_instruction (created

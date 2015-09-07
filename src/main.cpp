@@ -10,25 +10,19 @@
 #include <cstdio>
 #include <stdexcept>
 
-void print(unsigned int n, unsigned int fac)
-{
-    std::cout << n << "! = " << fac << std::endl;
-}
-
-void print_hatch(vm::core& vco)
-{
-    using namespace vm;
-    
-    uint32_t* arg0 = vco.stack + vco.registers[REG_CODE_SP]-2;
-    uint32_t* arg1 = vco.stack + vco.registers[REG_CODE_SP]-1;
-    print(*((unsigned int*) arg0), *((unsigned int*) arg1));
-}
-
-void printch(int ch)
+void putch(int ch)
 { std::cout << (char) ch; }
 
-void h_printch(vm::core& vco)
-{ printch(*((int*) vco.stack + vco.registers[vm::REG_CODE_SP]-1)); }
+void h_putch(vm::core& vco)
+{ putch(*((int*) vco.stack + vco.registers[vm::REG_CODE_SP]-1)); }
+
+#define HATCH_NAME(nm) \
+    h_ ## nm ## _hatch
+
+#define DECL_HATCH(nm) \
+    static vm::hatch HATCH_NAME(nm) = { .name = #nm, .entry = h_ ## nm };
+
+DECL_HATCH(putch)
 
 int main()
 {
@@ -59,12 +53,18 @@ int main()
             lexer_free(lex);
         }
         
-        /*** Link modules ***/
-        
         linker ln = linker_create();
+        
+        /*** Add modules to link together ***/
         
         linker_add_module(ln, mod_lib);
         uint32_t main_id = linker_add_module(ln, mod_main);
+        
+        /*** Expose hatches ***/
+        
+        linker_add_hatch(ln, HATCH_NAME(putch));
+        
+        /*** Link modules ***/
         
         core vco = linker_link(ln, main_id);
         linker_free_modules(ln);
@@ -77,6 +77,7 @@ int main()
         
         /*** Release core ***/
         
+        core_free_hatches(vco);
         core_free_segments(vco);
         core_free(vco);
     }

@@ -474,7 +474,7 @@ namespace as
         
         // Add the icode word now, as assembler_parse_operand will add
         //   it owns.
-        uint32_t location = module_add_word(ass.mod, instr->icode << vm::I_CODE_SHIFT);
+        uint32_t instr_location = module_add_word(ass.mod, instr->icode << vm::I_CODE_SHIFT);
         
         // Take special care for instruction that accept long jumps
         if (instr->iflags & I_FLAG_LONG)
@@ -493,13 +493,38 @@ namespace as
                 module_append_relocation(ass.mod, tok.value, seg, loc);
                 
                 // Fix the instruction word and set two immediate operands
-                uint32_t& instr_word = ass.mod.segment[location];
+                uint32_t& instr_word = ass.mod.segment[instr_location];
                 instr_word |= vm::OP_CODE_IMM << vm::OP_A_CODE_SHIFT;
                 instr_word |= vm::OP_CODE_IMM << vm::OP_B_CODE_SHIFT;
                 
                 // Get the new line
                 assembler_expect(ass, TOKEN_NEWLINE, "no more operands expected after long jump");
                 lexer_get(ass.lex);
+                
+                return;
+            }
+        }
+        // Take special care for instructions that accept hatch names
+        if (instr->iflags & I_FLAG_HATCH)
+        {
+            // Continue only if the instructio operand is an identifier
+            if (lexer_seekt(ass.lex) == TOKEN_IDENTIFIER)
+            {
+                token tok = lexer_get(ass.lex);
+                
+                // Add the hatch id. operand word to the program segment
+                uint32_t loc = module_add_word(ass.mod, 0);
+                // Add the corresponding reference
+                module_append_hatch_reference(ass.mod, tok.value, loc);
+                
+                // Fix the instruction word, setting an immediate operand
+                uint32_t& instr_word = ass.mod.segment[instr_location];
+                instr_word |= vm::OP_CODE_IMM << vm::OP_A_CODE_SHIFT;
+                
+                // Get the new line
+                assembler_expect(ass, TOKEN_NEWLINE, "no more operands expected after hatch reference");
+                lexer_get(ass.lex);
+                
                 return;
             }
         }
@@ -530,7 +555,7 @@ namespace as
             assembler_parse_error(tok, "this instruction expects an operand");
         
         // Encode the operands in the icode
-        uint32_t& instr_word = ass.mod.segment[location];
+        uint32_t& instr_word = ass.mod.segment[instr_location];
         if (hasA)
         {
             instr_word |= a.code << vm::OP_A_CODE_SHIFT;
