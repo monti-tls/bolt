@@ -34,49 +34,35 @@ again$2:
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-.entry main
+.entry init
 .extern println
 .extern strlen
 .extern strcmp
+.extern fsqrt
+.extern fabs
+.extern printi
 
-hello:
-    .data "hhah"
+nl:
+    .data ""
+
+init:
+    ; init "nl" field
+    push nl
+    push %hb
+    call strload
+    pop
+    pop
     
-world:
-    .data "hhah"
-
+    ; go to user main
+    jmp main
+    
 main:
-    push hello     ; load string on heap (.init !!)
-    push %hb
-    call strload
-    pop
-    pop
-    
-    push world
-    push %hb
-    push #50
-    uadd
-    call strload
-    pop
+    push #123
+    call printi
     pop
     
     push %hb
     call println
     pop
-    
-    push %hb
-    push #50
-    uadd
-    call println
-    pop
-    
-    push %hb
-    push %hb
-    push #50
-    uadd
-    call strcmp
-    pop
-    pop
-    dmo %rv
     
     halt
