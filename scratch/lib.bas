@@ -52,42 +52,151 @@ end:
     ret
     
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Print a string from the heap ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Get size of null-terminated string ;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
-.global print
-print:
-    push #0 ; i = 0
-    mov %r0, %sp
 
-print$loop:
-    push [%ab]    ; push s[base+i]
+; int i = 0;
+; while (*(str + i) != 0)
+;     i = i + 1;
+; return i;
+    
+.global strlen
+strlen:
+    push #0          ; i ~ [%r0-1]
+    mov %r0, %sp
+    
+strlen$loop:
+    push [%ab]       ; str + i
     push [%r0-1]
     uadd
     pop %r1
-    push [%r1]
+    
+    push [%r1]       ; *(str + i) != 0 ?
     push #0
     ucmp
-    je print$stop ; stop if null char encountered
+    je strlen$end    ; while
     
-    push [%r1]    ; output character
-    dive putch
-    pop
-    
-    push [%r0-1]  ; i = i+1
+    push [%r0-1]     ; i = i + 1
     push #1
     uadd
     pop [%r0-1]
     
-    jmp print$loop
-
-print$stop:
-    pop           ; pop off i
-    ret
+    jmp strlen$loop  ; while
     
-endl:
-    .data "\n"
+strlen$end:
+    mov %rv, [%r0-1] ; return i
+    
+    pop              ; clean up locals
+    ret
+  
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; int strcmp(char* a, char* b) ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; int i = 0;
+; while (*(str1 + i) == *(str2 + i))
+;     i = i + 1;
+; return *(str1 + i) - *(str2 + i);
+
+.global strcmp
+strcmp:
+    push #0        ; i ~ [%sp-1]
+    mov %r0, %sp
+    
+strcmp$loop:
+    push [%ab-1]   ; *(str1 + i)
+    push [%r0-1]
+    uadd
+    pop %r1
+    push [%r1]
+    dup
+    
+    push [%ab]     ; *(str2 + i)
+    push [%r0-1]
+    uadd
+    pop %r1
+    push [%r1]
+    
+    ucmp           ; while ==
+    jne strcmp$end
+    push #0        ; test if \0 reached
+    ucmp
+    je strcmp$end
+    
+    push [%r0-1]   ; i = i + 1
+    push #1
+    uadd
+    pop [%r0-1]
+    
+    dmo [%r0-1]
+    
+    jmp strcmp$loop
+    
+strcmp$end:
+    push [%ab-1]   ; *(str1 + i)
+    push [%r0-1]
+    uadd
+    pop %r1
+    push [%r1]
+    
+    push [%ab]     ; *(str2 + i)
+    push [%r0-1]
+    uadd
+    pop %r1
+    push [%r1]
+    
+    isub           ; return -
+    pop %rv
+    
+    pop            ; clean up locals
+    ret
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Print a string ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+    
+; int i = 0;
+; int c = 0;
+; do
+; {
+;     c = *(str + i);
+;     putch(c);
+;     i = i+1;
+; } while (c != 0);
+
+.global print
+print:
+    push #0      ; i ~ [%r0-2]
+    push #0      ; c ~ [%r0-1]
+    mov %r0, %sp
+    
+print$loop:
+    push [%ab]   ; c = *(str + i)
+    push [%r0-2]
+    uadd
+    pop %r1
+    push [%r1]
+    pop [%r0-1]
+    
+    push [%r0-1] ; putch(c)
+    dive putch
+    pop
+    
+    push [%r0-2] ; i = i+1
+    push #1
+    uadd
+    pop [%r0-2]
+    
+    push [%r0-1] ; c != 0 ?
+    push #0
+    ucmp
+    jne print$loop ; do-while
+    
+    pop          ; clean up locals
+    pop
+    ret          ; return
+    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Print a string from the heap with new lines ;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

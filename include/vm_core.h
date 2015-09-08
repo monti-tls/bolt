@@ -72,7 +72,9 @@ namespace vm
         
         PSR_FLAG_HALT = 0x80000000,
         PSR_FLAG_Z    = 0x00000001,
-        PSR_FLAG_N    = 0x00000002
+        PSR_FLAG_N    = 0x00000002,
+        
+        PSR_FLAG_CLR  = ~(PSR_FLAG_Z | PSR_FLAG_N)
     };
     
     //! This structure represents a program to be run on a virtual core.

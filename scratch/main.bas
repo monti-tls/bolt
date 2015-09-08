@@ -36,9 +36,14 @@ again$2:
 
 .entry main
 .extern println
+.extern strlen
+.extern strcmp
 
 hello:
     .data "hello, world !"
+    
+world:
+    .data "hello, worlde !"
 
 main:
     push hello     ; load string on heap (.init !!)
@@ -47,6 +52,25 @@ main:
     pop
     pop
     
-    push %hb       ; call prints
+    push world
+    push %hb
+    push #50
+    uadd
+    call strload
+    pop
+    pop
+    
+    push %hb
     call println
+    pop
+    
+    push %hb
+    push %hb
+    push #50
+    uadd
+    call strcmp
+    pop
+    pop
+    dmo %rv
+    
     halt

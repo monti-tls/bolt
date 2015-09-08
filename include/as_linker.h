@@ -31,9 +31,10 @@
 //! In the first iteration, 'solutions' are extracted for each relocation.
 //! Then, objects are mapped to segments (the one in vm::core), possibly
 //!   discarding unused objects.
+//! Hatch references (i.e, host calls) are resolved.
 //! The virtual core is created, code is copied to its segment memory.
-//! Lastly, all solutions are applied (and so the relocations are fixed), and the core
-//!   is ready !
+//! Lastly, all solutions are applied (and so the relocations + dive instructions are fixed),
+//!   and the core is ready !
 //!
 //! All those steps in the assembling of multiple modules into a final core
 //!   add a lot of algorithmic complexity to the system, but it ensures
