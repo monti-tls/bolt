@@ -118,21 +118,22 @@ strcmp$loop:
     push [%r1]
     
     ucmp           ; while ==
-    jne strcmp$end
+    jne strcmp$end$2
     push #0        ; test if \0 reached
     ucmp
-    je strcmp$end
+    je strcmp$end$1
     
     push [%r0-1]   ; i = i + 1
     push #1
     uadd
     pop [%r0-1]
     
-    dmo [%r0-1]
-    
     jmp strcmp$loop
     
-strcmp$end:
+strcmp$end$2:
+    pop
+    
+strcmp$end$1:
     push [%ab-1]   ; *(str1 + i)
     push [%r0-1]
     uadd
@@ -154,7 +155,6 @@ strcmp$end:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Print a string ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
     
 ; int i = 0;
 ; int c = 0;

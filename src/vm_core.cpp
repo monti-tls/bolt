@@ -403,34 +403,38 @@ namespace vm
             case I_CODE_JE:
                 if (vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
                     vco.registers[REG_CODE_PC] = *a;
-                break;
+                goto psr_clr;
                 
             case I_CODE_JNZ:
             case I_CODE_JNE:
                 if (!(vco.registers[REG_CODE_PSR] & PSR_FLAG_Z))
                     vco.registers[REG_CODE_PC] = *a;
-                break;
+                goto psr_clr;
                 
             case I_CODE_JL:
                 if (vco.registers[REG_CODE_PSR] & PSR_FLAG_N)
                     vco.registers[REG_CODE_PC] = *a;
-                break;
+                goto psr_clr;
                 
             case I_CODE_JLE:
                 if (vco.registers[REG_CODE_PSR] & PSR_FLAG_N ||
                     vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
                     vco.registers[REG_CODE_PC] = *a;
-                break;
+                goto psr_clr;
                 
             case I_CODE_JG:
                 if (!(vco.registers[REG_CODE_PSR] & PSR_FLAG_N))
                     vco.registers[REG_CODE_PC] = *a;
-                break;
+                goto psr_clr;
                 
             case I_CODE_JGE:
                 if (!(vco.registers[REG_CODE_PSR] & PSR_FLAG_N) ||
                     vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
                     vco.registers[REG_CODE_PC] = *a;
+                goto psr_clr;
+                
+            psr_clr:
+                vco.registers[REG_CODE_PSR] &= PSR_FLAG_CLR;
                 break;
                 
             default:

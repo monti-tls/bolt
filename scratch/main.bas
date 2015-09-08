@@ -40,10 +40,10 @@ again$2:
 .extern strcmp
 
 hello:
-    .data "hello, world !"
+    .data "hhah"
     
 world:
-    .data "hello, worlde !"
+    .data "hhah"
 
 main:
     push hello     ; load string on heap (.init !!)
@@ -61,6 +61,12 @@ main:
     pop
     
     push %hb
+    call println
+    pop
+    
+    push %hb
+    push #50
+    uadd
     call println
     pop
     
