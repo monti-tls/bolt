@@ -273,6 +273,20 @@ namespace vm
                 
             case I_CODE_LOAD:
             {
+                uint32_t addr = stack_pop(vco);
+                stack_push(vco, *mem_access(vco, addr));
+                break;
+            }
+                
+            case I_CODE_STOR:
+            {
+                uint32_t addr = stack_pop(vco);
+                *mem_access(vco, addr) = stack_pop(vco);
+                break;
+            }
+                
+            case I_CODE_CST:
+            {
                 uint32_t addr;
                 
                 if (a)
@@ -327,6 +341,8 @@ namespace vm
             //! +--------+
             //! |  ARGn  |
             //! +--------+
+            //! | R0-R9  |
+            //! +--------+
             //! |  AB    |
             //! +--------+
             //! |  PSR   |
@@ -348,6 +364,8 @@ namespace vm
                 //   to get the argument base address.
                 uint32_t args_base = vco.registers[REG_CODE_SP] - 1;
                 
+                for (int i = (int) REG_CODE_R0; i <= (int) REG_CODE_R9; ++i)
+                    stack_push(vco, vco.registers[i]);
                 stack_push(vco, vco.registers[REG_CODE_AB]);
                 stack_push(vco, vco.registers[REG_CODE_PSR]);
                 stack_push(vco, vco.registers[REG_CODE_PC]);
@@ -390,6 +408,8 @@ namespace vm
                 vco.registers[REG_CODE_PC] = stack_pop(vco);
                 vco.registers[REG_CODE_PSR] = stack_pop(vco);
                 vco.registers[REG_CODE_AB] = stack_pop(vco);
+                for (int i = (int) REG_CODE_R9; i >= (int) REG_CODE_R0; --i)
+                    vco.registers[i] = stack_pop(vco);
                 break;
                 
             if (!a)

@@ -2,8 +2,8 @@
 ;;;; Recursive factorial toy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-.global fac$r
-fac$r:
+.global fac-r
+fac-r:
     push [%ab]
     push #2u
     ucmp              ; compare n with 2
@@ -14,7 +14,7 @@ rec:                  ; else
     push [%ab]
     push #1u
     usub              ; there is n-1 on stack
-    call fac$r        ; recursively call fac(n-1)
+    call fac-r        ; recursively call fac(n-1)
     pop               ; pop off the argument
     push %rv          ; push return value
     push [%ab]        ; push n
@@ -26,8 +26,8 @@ rec:                  ; else
 ;;;; Iterative factorial toy ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     
-.global fac$it
-fac$it:
+.global fac-it
+fac-it:
     ; create room for temp var
     push #1u
     
@@ -65,25 +65,24 @@ strlen:
     push #0          ; i ~ [%r0-1]
     mov %r0, %sp
     
-strlen$loop:
-    push [%ab]       ; str + i
+strlen-loop:
+    push [%ab]       ; *(str + i)
     push [%r0-1]
     uadd
-    pop %r1
+    load
     
-    push [%r1]       ; *(str + i) != 0 ?
-    push #0
+    push #0          ; while
     ucmp
-    je strlen$end    ; while
+    je strlen-end
     
     push [%r0-1]     ; i = i + 1
     push #1
     uadd
     pop [%r0-1]
     
-    jmp strlen$loop  ; while
+    jmp strlen-loop  ; while
     
-strlen$end:
+strlen-end:
     mov %rv, [%r0-1] ; return i
     
     pop              ; clean up locals
@@ -103,48 +102,44 @@ strcmp:
     push #0        ; i ~ [%sp-1]
     mov %r0, %sp
     
-strcmp$loop:
+strcmp-loop:
     push [%ab-1]   ; *(str1 + i)
     push [%r0-1]
     uadd
-    pop %r1
-    push [%r1]
+    load
     dup
     
     push [%ab]     ; *(str2 + i)
     push [%r0-1]
     uadd
-    pop %r1
-    push [%r1]
+    load
     
     ucmp           ; while ==
-    jne strcmp$end$2
+    jne strcmp-end-2
     push #0        ; test if \0 reached
     ucmp
-    je strcmp$end$1
+    je strcmp-end-1
     
     push [%r0-1]   ; i = i + 1
     push #1
     uadd
     pop [%r0-1]
     
-    jmp strcmp$loop
+    jmp strcmp-loop
     
-strcmp$end$2:
+strcmp-end-2:
     pop
     
-strcmp$end$1:
+strcmp-end-1:
     push [%ab-1]   ; *(str1 + i)
     push [%r0-1]
     uadd
-    pop %r1
-    push [%r1]
+    load
     
     push [%ab]     ; *(str2 + i)
     push [%r0-1]
     uadd
-    pop %r1
-    push [%r1]
+    load
     
     isub           ; return -
     pop %rv
@@ -171,12 +166,11 @@ print:
     push #0      ; c ~ [%r0-1]
     mov %r0, %sp
     
-print$loop:
+print-loop:
     push [%ab]   ; c = *(str + i)
     push [%r0-2]
     uadd
-    pop %r1
-    push [%r1]
+    load
     pop [%r0-1]
     
     push [%r0-1] ; putch(c)
@@ -191,7 +185,7 @@ print$loop:
     push [%r0-1] ; c != 0 ?
     push #0
     ucmp
-    jne print$loop ; do-while
+    jne print-loop ; do-while
     
     pop          ; clean up locals
     pop
@@ -202,7 +196,7 @@ print$loop:
 ;;;; Print a string + new line ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-println$endl:
+println-endl:
     .data "\n"
 
 .global println
@@ -210,7 +204,7 @@ println:
     push [%ab]        ; print the string
     call print
     pop
-    load println$endl ; print endl
+    cst println-endl  ; print new line
     dive putch
     pop
     ret
@@ -238,11 +232,8 @@ println:
 ;     n = n - 1;
 ; }
 
-printi$minus:
-    .data "-"
-
-printi$digits:
-    .data "0123456789"
+printi-digits:
+    .data "0123456789-"
     
 .global printi
 printi:
@@ -253,8 +244,11 @@ printi:
     push [%r0-2]
     push #0
     icmp
-    jge printi$loop
-    load printi$minus
+    jge printi-loop
+    push printi-digits
+    push #10
+    uadd
+    cst
     dive putch
     pop
     push [%r0-2]
@@ -262,7 +256,7 @@ printi:
     imul
     pop [%r0-2]
     
-printi$loop:
+printi-loop:
     push [%r0-2]      ; push(d = x - (x / 10) * 10)
     push [%r0-2]
     push #10
@@ -284,12 +278,12 @@ printi$loop:
     push [%r0-2]      ; do {} while (x != 0)
     push #0
     icmp
-    jne printi$loop
+    jne printi-loop
 
-printi$loop2:
-    push printi$digits ; putch(digits + d), implicit pop(d)
+printi-loop2:
+    push printi-digits ; putch(digits + d), implicit pop(d)
     uadd
-    load
+    cst
     dive putch
     pop
 
@@ -301,9 +295,9 @@ printi$loop2:
     push [%r0-1]       ; while (n != 0)
     push #0
     ucmp
-    jne printi$loop2
+    jne printi-loop2
     
-printi$exit:
+printi-exit:
     pop               ; clean up locals
     pop
     ret
@@ -311,7 +305,7 @@ printi$exit:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; float fabs(float x) ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   
+
 ; return x > 0 ? x : -x; 
   
 .global fabs
@@ -320,10 +314,10 @@ fabs:
     dup
     push #f0
     fcmp
-    jg fabs$end
+    jg fabs-end
     push #f-1
     fmul
-fabs$end:
+fabs-end:
     pop %rv
     ret
   
@@ -354,14 +348,14 @@ fsqrt:
     push [%ab]           ; if (x <= 0)
     push #f0
     fcmp
-    jg fsqrt$work
+    jg fsqrt-work
     mov %rv, [%ab]       ; return x
-    jmp fsqrt$exit
+    jmp fsqrt-exit
     
-fsqrt$work:
+fsqrt-work:
     mov [%r0-3], [%ab]   ; y = estimator = x
     
-fsqrt$loop:
+fsqrt-loop:
     push #f0.5           ; yn = 0.5 * (y + x/y)
     push [%r0-3]
     push [%ab]
@@ -383,11 +377,11 @@ fsqrt$loop:
     push [%r0-1]         ; do {} while (e < epsilon)
     push #f0.001
     fcmp
-    jge fsqrt$loop
+    jge fsqrt-loop
     
     mov %rv, [%r0-3]     ; return y
     
-fsqrt$exit:
+fsqrt-exit:
     pop                  ; clean up locals
     pop
     pop

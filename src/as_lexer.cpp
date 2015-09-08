@@ -262,12 +262,15 @@ namespace as
                 }
             }
             // Labels and identifiers
-            else if (std::isalpha(lex.next_char) || lex.next_char == '_' || lex.next_char == '$')
+            else if (std::isalpha(lex.next_char) || lex.next_char == '_')
             {
                 std::string value = "";
                 
                 value += lexer_get_char(lex);
-                while (std::isalnum(lex.next_char) || lex.next_char == '_' || lex.next_char == '$')
+                while (std::isalnum(lex.next_char) ||
+                       lex.next_char == '_' ||
+                       lex.next_char == '$' ||
+                       lex.next_char == '-')
                     value += lexer_get_char(lex);
                 
                 // No space is allowed between label name and semicolon

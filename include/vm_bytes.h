@@ -72,9 +72,11 @@ namespace vm
     //!            POP  <A>:          pop A from the stack
     //!            DUP:               duplicate the value on top of the stack
     //!            MOV  <A>, <B>:     move B's value to A
-    //!            LOAD [<A>, [<B>]]: push the word at the address A in program memory
-    //!                               take from from the segment B if specified (if no operands,
-    //!                               address is taken from the stack and from current segment).
+    //!            LOAD:              pop an address from the stack, push the value at this address
+    //!            STOR:              pop an address from the stack, pop a value, write the value at this address
+    //!            CST [<A>, [<B>]]:  push the word at the address A in program memory,
+    //!                                 taking it from from the segment B if specified (if no operands,
+    //!                                 address is taken from the stack and considered in the current segment).
     //!
     //!   FLOW:  the program flow control group:
     //!            CALL <A>:      call the function starting at A's address
