@@ -175,7 +175,7 @@ namespace vm
     
     enum : uint32_t
     {
-        #include "vm_instructions.inc"
+        #include "bolt/vm_instructions.inc"
     };
     
     #undef DECL_INSTR

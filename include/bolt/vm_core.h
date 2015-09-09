@@ -56,7 +56,7 @@ namespace vm
     
     enum : uint32_t
     {
-        #include "vm_registers.inc"
+        #include "bolt/vm_registers.inc"
         
         REG_COUNT
     };

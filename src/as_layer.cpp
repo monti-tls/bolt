@@ -45,7 +45,7 @@ namespace as
     
     static layer_instruction layer_instructions[] =
     {
-        #include "vm_instructions.inc"
+        #include "bolt/vm_instructions.inc"
     };
     
     #undef DECL_INSTR
@@ -66,7 +66,7 @@ namespace as
     
     static layer_register layer_registers[] =
     {
-        #include "vm_registers.inc"
+        #include "bolt/vm_registers.inc"
     };
     
     #undef DECL_REGISTER
