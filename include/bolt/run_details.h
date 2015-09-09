@@ -18,6 +18,7 @@
 
 #include "bolt/vm_core.h"
 #include <iostream>
+#include <functional>
 
 //!
 //! run_details
@@ -110,6 +111,24 @@ namespace run
         struct exposer
         { static_assert(dependent_bool<false, S>::value, "run::detail::exposer: invalid function signature"); };
         
+        //! The invoker structure for non-void returns.
+        //! H is decltype from a std::bind.
+        template <typename R, typename H>
+        struct invoker
+        {
+            static void work(H handler, vm::core& vco)
+            { vco.registers[vm::REG_CODE_RV] = handler(); }
+        };
+        
+        //! The invoker structure for void returns (that does not
+        //!   overwrites the %rv register.
+        template <typename H>
+        struct invoker<void, H>
+        {
+            static void work(H handler, vm::core&)
+            { handler(); }
+        };
+        
         //! Defines a static function that invokes a generic function pointer
         //!   extracting arguments from the vm::core's stack.
         template <typename R, typename... Args>
@@ -117,19 +136,15 @@ namespace run
         {
             static void work(vm::core& vco, R(*function_ptr)(Args...))
             {
-                core_wrapper cwr = { vco, 0 };
-                vco.registers[vm::REG_CODE_RV] = (*function_ptr)(argument_extractor<Args>::work(cwr)...);
-            }
-        };
-        
-        //! Specialization of above for void return values.
-        template <typename... Args>
-        struct exposer<void(*)(Args...)>
-        {
-            static void work(vm::core& vco, void(*function_ptr)(Args...))
-            {
-                core_wrapper cwr = { vco, 0 };
-                (*function_ptr)(argument_extractor<Args>::work(cwr)...);
+                // The unused attribute silents the warning for functions
+                //   with no arguments.
+                core_wrapper __attribute__((unused)) cwr = { vco, 0 };
+                
+                // Bind the extracted arguments to the function pointer
+                auto handler = std::bind(*function_ptr, argument_extractor<Args>::work(cwr)...);
+                
+                // Invoke the bound function, taking care of the return value
+                invoker<R, decltype(handler)>::work(handler, vco);
             }
         };
         

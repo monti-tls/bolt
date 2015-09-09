@@ -311,7 +311,7 @@ namespace as
         {
             hatch_entry& hte = ln.hatch_entries[i];
             if (!hte.used)
-                break;
+                continue;
             
             for (uint32_t j = 0; j < hte.solutions_size; ++j)
             {
@@ -329,7 +329,7 @@ namespace as
         {
             hatch_entry& hte = ln.hatch_entries[i];
             if (!hte.used)
-                break;
+                continue;
             
             // Copy the hatch structure into the VCO's hatch table
             ln.vco.hatches[hte.hatch_id] = new vm::hatch;

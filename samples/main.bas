@@ -90,19 +90,15 @@ init:
 
 main:
     push %hb
-    call myputs
-    pop
-    
-    push #123654
-    dive puti
-    pop
-    
-    push #f3.14159
-    dive putf
-    pop
-    
-    push %hb
     dive puts
     pop
+    
+again:
+    dive getc
+    dmo %rv
+    push %rv
+    dive putc
+    pop
+    jmp again
     
     halt

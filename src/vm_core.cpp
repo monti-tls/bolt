@@ -579,7 +579,7 @@ namespace vm
     
     //! Execute the next instruction.
     static void execute(core& vco)
-    {
+    {   
         uint32_t instr = fetch(vco);
         
         uint32_t icode = (instr & I_CODE_MASK) >> I_CODE_SHIFT;

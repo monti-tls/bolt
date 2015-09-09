@@ -43,6 +43,9 @@ static void puts(int* str)
         std::cout << (char) *p;
 }
 
+static int getc()
+{ return std::cin.get(); }
+
 namespace run
 {
     void runtime_expose(as::linker& ln)
@@ -55,6 +58,7 @@ namespace run
         EXPOSE(void(*)(int),   puti)
         EXPOSE(void(*)(float), putf)
         EXPOSE(void(*)(int*),  puts)
+        EXPOSE(int (*)(void),  getc)
         
         #undef EXPOSE
     }
