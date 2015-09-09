@@ -37,7 +37,7 @@ namespace run
     //! For example, to bind "int foo(int)" with name "foo", do :
     //!   runtime_generate_hatch<int(*)(int), &foo>("foo");
     //! Note that S is a function *pointer* type, so
-    //!   int(int) will *not* work.
+    //!   using S = int(int) will *not* work.
     template <typename S, S function_ptr>
     vm::hatch runtime_generate_hatch(std::string const& name)
     {

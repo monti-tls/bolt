@@ -19,7 +19,7 @@
 ;; io.bas
 ;;
 
-;; This file defines some string input/output in Bolt assembly.
+;; This file defines some input/output routines in Bolt assembly.
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -38,8 +38,8 @@
 ;     } while (c != 0);
 ; }
 
-.global puts
-puts:
+.global myputs
+myputs:
     push #0       ; i ~ [%r0-2]
     push #0       ; c ~ [%r0-1]
     mov %r0, %sp

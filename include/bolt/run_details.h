@@ -17,6 +17,7 @@
  */
 
 #include "bolt/vm_core.h"
+#include <iostream>
 
 //!
 //! run_details
@@ -52,7 +53,7 @@ namespace run
         template <typename T>
         struct argument_extractor
         {
-            static T& work(core_wrapper& cwr)
+            static T work(core_wrapper& cwr)
             {
                 // We use an union to fool GCC about pointer aliasing
                 union
@@ -63,13 +64,33 @@ namespace run
                 
                 unsigned int offset = cwr.vco.registers[vm::REG_CODE_SP] - type_size<T>::value;
                 raw_ptr = cwr.vco.stack + offset - cwr.offset;
+                // std::cout << "stack + " << offset << " [-" << cwr.offset << "]" << std::endl;
                 cwr.offset += type_size<T>::value;
                 
                 return *arg_ptr;
             }
         };
         
-        //TODO: implement specialization for pointers (indirection on heap)
+        //! Specialization for pointers, that must be redirected to the core's stack/heap.
+        template <typename T>
+        struct argument_extractor<T*>
+        {
+            static T* work(core_wrapper& cwr)
+            {
+                unsigned int offset = cwr.vco.registers[vm::REG_CODE_SP] - 1;
+                uint32_t* address = cwr.vco.stack + offset - cwr.offset;
+                cwr.offset += 1;
+                
+                union
+                {
+                    uint32_t* raw_ptr;
+                    T* arg_ptr;
+                };
+                
+                raw_ptr = cwr.vco.stack + *address;
+                return arg_ptr;
+            }
+        };
         
         //! This trick is needed as the static_assert will be always triggered
         //!   if it does not relies on a dependent name.
@@ -92,7 +113,7 @@ namespace run
             static void work(vm::core& vco, R(*function_ptr)(Args...))
             {
                 core_wrapper cwr = { vco, 0 };
-                vco.registers[vm::REG_CODE_RV] = (*function_ptr)(argument_extractor<Args...>::work(cwr));
+                vco.registers[vm::REG_CODE_RV] = (*function_ptr)(argument_extractor<Args>::work(cwr)...);
             }
         };
         
@@ -103,7 +124,7 @@ namespace run
             static void work(vm::core& vco, void(*function_ptr)(Args...))
             {
                 core_wrapper cwr = { vco, 0 };
-                (*function_ptr)(argument_extractor<Args...>::work(cwr));
+                (*function_ptr)(argument_extractor<Args>::work(cwr)...);
             }
         };
         

@@ -32,7 +32,7 @@ $(BINARY): $(OBJECTS)
 
 
 run: $(BINARY)
-	@$(BINARY)
+	@$(BINARY) $(options)
 
 check: $(BINARY)
 	@valgrind --tool=memcheck --leak-check=full $(BINARY)

@@ -19,14 +19,29 @@
 #include "bolt/run_runtime.h"
 #include <iostream>
 
+//! Print a character.
 static void putc(int c)
 { std::cout << (char) c; }
 
+//! Print an integer.
 static void puti(int x)
 { std::cout << x; }
 
+//! Print a float.
 static void putf(float x)
 { std::cout << x; }
+
+//! Print a string.
+//! Note that we simply take a pointer here, that is
+//!   automatically redirected by the hatch generator
+//!   to the appropriate location on the heap.
+//! Note also that we can't use a char*, because we would,
+//!   when doing ++p, advance by a byte instead of 4 (as sizeof(uint32_t) = 4).
+static void puts(int* str)
+{
+    for (int* p = str; *p; ++p)
+        std::cout << (char) *p;
+}
 
 namespace run
 {
@@ -34,11 +49,12 @@ namespace run
     {
         //! This macro is used here for readability only.
         #define EXPOSE(sig, name) \
-            as::linker_add_hatch(ln, runtime_generate_hatch<sig, name>(#name));
+            as::linker_add_hatch(ln, runtime_generate_hatch<sig, &name>(#name));
         
         EXPOSE(void(*)(int),   putc)
         EXPOSE(void(*)(int),   puti)
         EXPOSE(void(*)(float), putf)
+        EXPOSE(void(*)(int*),  puts)
         
         #undef EXPOSE
     }

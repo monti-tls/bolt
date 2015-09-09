@@ -332,7 +332,9 @@ namespace as
                 break;
             
             // Copy the hatch structure into the VCO's hatch table
-            ln.vco.hatches[hte.hatch_id] = new vm::hatch(hte.hatch);
+            ln.vco.hatches[hte.hatch_id] = new vm::hatch;
+            ln.vco.hatches[hte.hatch_id]->name = hte.hatch.name;
+            ln.vco.hatches[hte.hatch_id]->entry = hte.hatch.entry;
         }
     }
     

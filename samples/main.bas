@@ -70,7 +70,7 @@ cststr-cleanup:
    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    
-.extern puts
+.extern myputs
     
 .entry init
 str:
@@ -90,7 +90,19 @@ init:
 
 main:
     push %hb
-    call puts
+    call myputs
+    pop
+    
+    push #123654
+    dive puti
+    pop
+    
+    push #f3.14159
+    dive putf
+    pop
+    
+    push %hb
+    dive puts
     pop
     
     halt
