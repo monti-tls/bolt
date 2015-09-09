@@ -1,5 +1,7 @@
 # This file is part of bolt.
 #
+# Copyright (c) 2015, Alexandre Monti
+#
 # bolt is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -16,8 +18,8 @@
 ## Compilation options
 CXX=g++
 
-CXXFLAGS=-fPIC -Wall -Wextra -std=gnu++11
-LDFLAGS=
+CXXFLAGS=-I../libconf/include -fPIC -Wall -Wextra -std=gnu++11
+LDFLAGS=-L../libconf/bin -lconf
 RELEASE_FLAGS=-O3
 DEBUG_FLAGS=-DDEBUG -g
 

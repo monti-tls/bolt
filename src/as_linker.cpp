@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,7 +16,7 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "as_linker.h"
+#include "bolt/as_linker.h"
 #include <stdexcept>
 #include <algorithm>
 
@@ -334,6 +336,34 @@ namespace as
         }
     }
     
+    //! Find the default entry module.
+    //! This searchs for the only module with a .entry directive.
+    //! If multiple modules uses .entry directive, an error will be thrown.
+    uint32_t linker_find_default_entry_module(linker& ln)
+    {
+        bool found = false;
+        uint32_t id = 0;
+        
+        for (uint32_t i = 0; i < ln.objects_size; ++i)
+        {
+            object& obj = ln.objects[i];
+            
+            if (obj.mod.has_entry)
+            {
+                if (found)
+                    throw std::logic_error("as::linker_find_default_entry_module: multiple entry points defined");
+                
+                found = true;
+                id = i;
+            }
+        }
+        
+        if (!found)
+            throw std::logic_error("as::linker_find_default_entry_module: no entry point found");
+        
+        return id;
+    }
+    
     /*************************/
     /*** Public module API ***/
     /*************************/
@@ -370,7 +400,7 @@ namespace as
         ln.hatch_entries_size = 0;
     }
     
-    uint32_t linker_add_module(linker& ln, module const& mod)
+    int linker_add_module(linker& ln, module const& mod)
     {
         object& obj = grow_array(ln.objects_size, ln.objects);
         obj.mod = mod;
@@ -388,14 +418,17 @@ namespace as
         hte.solutions = 0;
     }
     
-    vm::core linker_link(linker& ln, uint32_t base)
+    vm::core linker_link(linker& ln, int base)
     {
         // Init temp stuff
         linker_temps_create(ln);
         
         // Set up the base object id so other functions can see it
         //   (notably assign_segments, that could mark it as unused otherwise)
-        ln.base_object = base;
+        if (base < 0)
+            ln.base_object = linker_find_default_entry_module(ln);
+        else
+            ln.base_object = base;
         
         // Find all solutions to all relocations
         linker_find_solutions(ln);

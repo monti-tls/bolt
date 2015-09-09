@@ -1,36 +1,8 @@
 ## bolt
 
-Work in progress...
+Bolt is a simple virtual machine written in C++.
+It emulated a hardware CPU core with a 32-bit instruction set, and is based on a Harvard architecture
+(program and data memories are separated and uses different addressing schemes).
+It is a stack-oriented machine.
 
-### Naming conventions
-
-#### C-like sources (mainly VM code)
-
-```C++
-struct lowercase_with_underscores
-{};
-
-void function_name(...)
-{}
-
-enum
-{
-    UPPER_CASE_UNDERSCORED
-}
-
-#### C++ OO sources (other code : parsing, user interface)
-
-class CamelCase
-{
-public:
-    int publicMethod();
-    
-private:
-    int M_privateMethod();
-
-public:
-    int publicMember;
-    
-private:
-    int m_privateMember;
-};
+*Better description coming soon...*

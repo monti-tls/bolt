@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,9 +16,30 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BOLT_COMMON_H
-#define BOLT_COMMON_H
+#include "bolt/run_runtime.h"
+#include <iostream>
 
-#include <stdint.h>
+static void putc(int c)
+{ std::cout << (char) c; }
 
-#endif // BOLT_COMMON_H
+static void puti(int x)
+{ std::cout << x; }
+
+static void putf(float x)
+{ std::cout << x; }
+
+namespace run
+{
+    void runtime_expose(as::linker& ln)
+    {
+        //! This macro is used here for readability only.
+        #define EXPOSE(sig, name) \
+            as::linker_add_hatch(ln, runtime_generate_hatch<sig, name>(#name));
+        
+        EXPOSE(void(*)(int),   putc)
+        EXPOSE(void(*)(int),   puti)
+        EXPOSE(void(*)(float), putf)
+        
+        #undef EXPOSE
+    }
+}

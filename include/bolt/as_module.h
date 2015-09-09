@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -89,6 +91,7 @@ namespace as
         uint32_t segment_size;
         uint32_t* segment;
         
+        bool has_entry;
         uint32_t entry;
     };
     

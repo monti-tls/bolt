@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,7 +16,7 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "vm_core.h"
+#include "bolt/vm_core.h"
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
@@ -495,6 +497,18 @@ namespace vm
                 
             case I_CODE_UDIV:
                 stack_push(vco, u_lhs / u_rhs);
+                break;
+                
+            case I_CODE_UAND:
+                stack_push(vco, u_lhs & u_rhs);
+                break;
+                
+            case I_CODE_UOR:
+                stack_push(vco, u_lhs | u_rhs);
+                break;
+                
+            case I_CODE_UXOR:
+                stack_push(vco, u_lhs ^ u_rhs);
                 break;
             
             case I_CODE_UCMP:

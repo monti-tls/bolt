@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -17,8 +19,8 @@
 #ifndef BOLT_AS_LINKER_H
 #define BOLT_AS_LINKER_H
 
-#include "as_module.h"
-#include "vm_core.h"
+#include "bolt/as_module.h"
+#include "bolt/vm_core.h"
 
 //!
 //! as_linker
@@ -114,7 +116,7 @@ namespace as
     void linker_free(linker& ln);
     
     //! Add a module to a linker, returning its id.
-    uint32_t linker_add_module(linker& ln, module const& mod);
+    int linker_add_module(linker& ln, module const& mod);
     
     //! Expose a hatch to the linker.
     void linker_add_hatch(linker& ln, vm::hatch const& hatch);
@@ -122,7 +124,9 @@ namespace as
     //! Link all modules added to the linker and
     //!   create a virtual core containing the linked program.
     //! The base argument specifies the entry module id.
-    vm::core linker_link(linker& ln, uint32_t base);
+    //! Of base < 0, the linker will search for the default entry point,
+    //!   and a single module must use a .entry directive.
+    vm::core linker_link(linker& ln, int base = -1);
 }
 
 #endif // BOLT_AS_LINKER_H

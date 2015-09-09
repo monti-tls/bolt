@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -60,14 +62,17 @@ DECL_INSTR(ARITH, UADD, 0x01, I(NONE),  F(NONE),         F(NONE))
 DECL_INSTR(ARITH, USUB, 0x02, I(NONE),  F(NONE),         F(NONE))
 DECL_INSTR(ARITH, UMUL, 0x03, I(NONE),  F(NONE),         F(NONE))
 DECL_INSTR(ARITH, UDIV, 0x04, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, UCMP, 0x05, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, IADD, 0x06, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, ISUB, 0x07, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, IMUL, 0x08, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, IDIV, 0x09, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, ICMP, 0x0A, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, FADD, 0x0B, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, FSUB, 0x0C, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, FMUL, 0x0D, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, FDIV, 0x0E, I(NONE),  F(NONE),         F(NONE))
-DECL_INSTR(ARITH, FCMP, 0x0F, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, UAND, 0x05, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, UOR,  0x06, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, UXOR, 0x07, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, UCMP, 0x08, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, IADD, 0x09, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, ISUB, 0x0A, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, IMUL, 0x0B, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, IDIV, 0x0C, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, ICMP, 0x0D, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, FADD, 0x0E, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, FSUB, 0x0F, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, FMUL, 0x10, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, FDIV, 0x11, I(NONE),  F(NONE),         F(NONE))
+DECL_INSTR(ARITH, FCMP, 0x12, I(NONE),  F(NONE),         F(NONE))

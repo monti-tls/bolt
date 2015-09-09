@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -17,8 +19,8 @@
 #ifndef BOLT_AS_ASSEMBLER_H
 #define BOLT_AS_ASSEMBLER_H
 
-#include "as_lexer.h"
-#include "as_module.h"
+#include "bolt/as_lexer.h"
+#include "bolt/as_module.h"
 
 //!
 //! as_assembler

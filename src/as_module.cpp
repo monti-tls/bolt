@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,7 +16,7 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "as_module.h"
+#include "bolt/as_module.h"
 #include <algorithm>
 
 namespace as
@@ -118,6 +120,7 @@ namespace as
         mod.segment_size = 0;
         mod.segment = 0;
         
+        mod.has_entry = false;
         mod.entry = 0;
         
         return mod;

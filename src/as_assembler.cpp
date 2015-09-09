@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -14,10 +16,10 @@
  * along with bolt.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "as_assembler.h"
-#include "as_layer.h"
-#include "vm_bytes.h"
-#include "vm_core.h"
+#include "bolt/as_assembler.h"
+#include "bolt/as_layer.h"
+#include "bolt/vm_bytes.h"
+#include "bolt/vm_core.h"
 #include <stdexcept>
 #include <sstream>
 #include <algorithm>
@@ -231,6 +233,7 @@ namespace as
             std::string identifier = tok.value;
             
             // Add the module's entry point to the pending list
+            ass.mod.has_entry = true;
             assembler_add_pending_pointer(ass, identifier, &ass.mod.entry);
         }
         else if (directive == "global")
@@ -473,7 +476,7 @@ namespace as
             assembler_parse_error(tok, "invalid mnemonic \"" + mnemonic + "\"");
         
         // Add the icode word now, as assembler_parse_operand will add
-        //   it owns.
+        //   its owns.
         uint32_t instr_location = module_add_word(ass.mod, instr->icode << vm::I_CODE_SHIFT);
         
         // Take special care for instruction that accept long jumps

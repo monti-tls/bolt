@@ -1,5 +1,7 @@
 /* This file is part of bolt.
  * 
+ * Copyright (c) 2015, Alexandre Monti
+ * 
  * bolt is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -17,7 +19,7 @@
 #ifndef BOLT_VM_BYTES_H
 #define BOLT_VM_BYTES_H
 
-#include <common.h>
+#include "bolt/common.h"
 
 //!
 //! vm_bytes
@@ -29,10 +31,9 @@
 
 namespace vm
 {
-    //!FIXME: We must use "enum : uint32_t" that is, a C++11's feature :(
+    //! Note: We must use typed enumerations, e.g. "enum : uint32_t", (a C++11's feature)
     //!         because some constants do not fit in a signed int, and GCC messes
     //!         them up when using instruction crafting macros.
-    //!       I hope this is a temporary issue !
     
     //! The bolt instruction set is rather simple.
     //! An instruction is made up of an operation code,
