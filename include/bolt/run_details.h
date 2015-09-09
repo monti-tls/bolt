@@ -26,14 +26,10 @@
 //! This file contains implementation details for the
 //!   host function exposing mechanism.
 //! Do NOT include this file, and do NOT use the run::details:: contents.
+//! The public API for this module resides in run_runtime.h.
 
 namespace run
 {
-    //!
-    //! The namespace below contains implementation details,
-    //!   and shall not be used by the end user.
-    //! See this module's public API below
-    //!
     namespace details
     {
         //! Used to get the size of a type in Bolt's word increments.
@@ -46,7 +42,7 @@ namespace run
         struct core_wrapper
         {
             vm::core& vco;
-            int offset;
+            int position;
         };
         
         //! Used to extract arguments from a vm::core stack.
@@ -62,10 +58,13 @@ namespace run
                     T* arg_ptr;
                 };
                 
+                // Compute the offset for this argument
                 unsigned int offset = cwr.vco.registers[vm::REG_CODE_SP] - type_size<T>::value;
-                raw_ptr = cwr.vco.stack + offset - cwr.offset;
-                // std::cout << "stack + " << offset << " [-" << cwr.offset << "]" << std::endl;
-                cwr.offset += type_size<T>::value;
+                offset -= cwr.position;
+                // Get the corresponding argument's location in the stack
+                raw_ptr = cwr.vco.stack + offset;
+                // Advance the core wrapper's position for the next argument extraction
+                cwr.position += type_size<T>::value;
                 
                 return *arg_ptr;
             }
@@ -77,16 +76,22 @@ namespace run
         {
             static T* work(core_wrapper& cwr)
             {
+                // Compute the offset for the argument (pointers are always 1 word)
                 unsigned int offset = cwr.vco.registers[vm::REG_CODE_SP] - 1;
-                uint32_t* address = cwr.vco.stack + offset - cwr.offset;
-                cwr.offset += 1;
+                offset -= cwr.position;
+                // Get its location on the stack
+                uint32_t* address = cwr.vco.stack + offset;
+                // Advance position
+                cwr.position += 1;
                 
+                // Fool GCC about pointer aliasing
                 union
                 {
                     uint32_t* raw_ptr;
                     T* arg_ptr;
                 };
                 
+                // Follow the indirection
                 raw_ptr = cwr.vco.stack + *address;
                 return arg_ptr;
             }
