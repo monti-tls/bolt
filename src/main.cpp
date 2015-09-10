@@ -18,8 +18,8 @@
 
 #include "bolt/as_assembler.h"
 #include "bolt/as_linker.h"
-#include "bolt/run_runtime.h"
 #include "bolt/vm_core.h"
+#include "bolt/vm_runtime.h"
 
 #include <lconf/cli.h>
 #include <fstream>
@@ -28,7 +28,6 @@ int main(int argc, char** argv)
 {
     using namespace bolt::as;
     using namespace bolt::vm;
-    using namespace bolt::run;
     
     /****************************************/
     /*** Command-line options definitions ***/
