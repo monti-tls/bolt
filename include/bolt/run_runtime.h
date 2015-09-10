@@ -31,7 +31,7 @@
 //! This module defines the Bolt standard library, as well as an
 //!   automatic hatch generator.
 
-namespace run
+namespace bolt { namespace run
 {
     //! Generate a hatch from a function's signature and pointer.
     //! For example, to bind "int foo(int)" with name "foo", do :
@@ -49,6 +49,6 @@ namespace run
     
     //! Expose the Bolt's runtime library to a linker.
     void runtime_expose(as::linker& ln);
-}
+} }
 
 #endif // BOLT_RUN_RUNTIME_H

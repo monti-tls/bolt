@@ -17,7 +17,6 @@
  */
 
 #include "bolt/vm_core.h"
-#include <iostream>
 #include <functional>
 
 //!
@@ -29,7 +28,7 @@
 //! Do NOT include this file, and do NOT use the run::details:: contents.
 //! The public API for this module resides in run_runtime.h.
 
-namespace run
+namespace bolt { namespace run
 {
     namespace details
     {
@@ -156,4 +155,4 @@ namespace run
             { exposer<S>::work(vco, function_ptr); }
         };
     }
-}
+} }

@@ -34,7 +34,7 @@
 //! It also provides a way to fetch register ids from their names, this uses
 //!   the vm_registers.inc file.
 
-namespace as
+namespace bolt { namespace as
 {
     //! Instruction set allowed operand flags.
     //!
@@ -95,6 +95,6 @@ namespace as
     //! Get a register  by name.
     //! Returns 0 if not found.
     layer_register* layer_find_register(std::string const& name);
-}
+} }
 
 #endif // BOLT_AS_LAYER_H

@@ -79,6 +79,7 @@ str:
 init:
     push str
     push %hb
+    dmr
     call cststr
     pop
     pop
@@ -95,10 +96,9 @@ main:
     
 again:
     dive getc
-    dmo %rv
     push %rv
     dive putc
     pop
-    jmp again
+    ;jmp again
     
     halt

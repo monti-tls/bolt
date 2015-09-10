@@ -30,7 +30,7 @@
 //!   Bolt text assembly files.
 //! It is mainly used by the as_assembler module.
 
-namespace as
+namespace bolt { namespace as
 {
     //! Here are the allowed tokens :
     //!   comments:   ';' blabla (single line)
@@ -78,6 +78,6 @@ namespace as
     
     //! Extract the next token from the input stream.
     token lexer_get(lexer& lex);
-}
+} }
 
 #endif // BOLT_AS_LEXER_H

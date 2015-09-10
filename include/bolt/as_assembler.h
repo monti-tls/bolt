@@ -46,7 +46,7 @@
 //!   an indirection [%reg] or [#val]
 //!   an offset indirection [%reg+val] or [#val+val] (useless ;) )
 
-namespace as
+namespace bolt { namespace as
 {
     //! A pending label entry.
     //! Each referenced label creates a pending entry, that
@@ -109,6 +109,6 @@ namespace as
     //! Assemble the stream into a module.
     //! Note that you must free it yourself !
     module assembler_assemble(assembler& ass);
-}
+} }
 
 #endif // BOLT_AS_ASSEMBLER_H

@@ -19,7 +19,7 @@
 #include "bolt/as_module.h"
 #include <algorithm>
 
-namespace as
+namespace bolt { namespace as
 {
     /**************************************/
     /*** Private implementation section ***/
@@ -228,4 +228,4 @@ namespace as
         grow_array(mod.segment_size++, mod.segment) = word;
         return mod.segment_size - 1;
     }
-}
+} }

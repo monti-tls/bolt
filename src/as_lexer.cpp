@@ -18,7 +18,7 @@
 
 #include "bolt/as_lexer.h"
 
-namespace as
+namespace bolt { namespace as
 {
     /**************************************/
     /*** Private implementation section ***/
@@ -375,4 +375,4 @@ namespace as
         lex.next_token = lexer_get_token(lex);
         return tok;
     }
-}
+} }

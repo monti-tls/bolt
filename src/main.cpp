@@ -26,9 +26,9 @@
 
 int main(int argc, char** argv)
 {
-    using namespace as;
-    using namespace vm;
-    using namespace run;
+    using namespace bolt::as;
+    using namespace bolt::vm;
+    using namespace bolt::run;
     
     /****************************************/
     /*** Command-line options definitions ***/

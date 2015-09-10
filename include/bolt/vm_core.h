@@ -21,6 +21,7 @@
 
 #include "bolt/vm_bytes.h"
 #include <string>
+#include <iostream>
 
 //!
 //! vm_core
@@ -46,7 +47,7 @@
 //!   address of the stack's top, while the HB register hold the first valid heap address
 //!   (if not modified).
 
-namespace vm
+namespace bolt { namespace vm
 {
     //! This macro defines the behavior of the declarations
     //!   in vm_registers.inc, here they define the enumeration
@@ -135,6 +136,12 @@ namespace vm
     
     //! Run until the end of the program (or the core halted).
     void core_run(core& vco);
-}
+    
+    //! Print a register dump of the core.
+    void core_register_dump(core& vco, std::ostream& os = std::cout);
+    
+    //! Print a stack dump of the core.
+    void core_stack_dump(core& vco, std::ostream& os = std::cout);
+} }
 
 #endif // BOLT_VM_CORE_H

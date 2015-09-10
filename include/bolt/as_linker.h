@@ -44,7 +44,7 @@
 //! Because all function calls are finally mapped to simple offsets, no table
 //!   lookup is needed at runtime.
 
-namespace as
+namespace bolt { namespace as
 {
     //! A relocation solution, that links a relocation from a module (the applicant)
     //!   to a symbol in another (the provider).
@@ -127,6 +127,6 @@ namespace as
     //! Of base < 0, the linker will search for the default entry point,
     //!   and a single module must use a .entry directive.
     vm::core linker_link(linker& ln, int base = -1);
-}
+} }
 
 #endif // BOLT_AS_LINKER_H

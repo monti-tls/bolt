@@ -24,7 +24,7 @@
 #include <sstream>
 #include <algorithm>
 
-namespace as
+namespace bolt { namespace as
 {
     // Forward declarations.
     static uint32_t assembler_parse_immediate(std::string const& value);
@@ -315,32 +315,47 @@ namespace as
     //! Parse an immediate string as a floating-point value.
     static uint32_t assembler_parse_immediate_f(std::string const& value)
     {
-        float imm = std::stof(value);
-        return *((uint32_t*) &imm);
+        union {
+            float imm;
+            uint32_t imm_as_uint32;
+        };
+        
+        imm = std::stof(value);
+        return imm_as_uint32;
     }
     
     //! Parse an immediate string as a hexadecimal value.
     static uint32_t assembler_parse_immediate_x(std::string const& value)
     {
+        union {
+            int imm;
+            uint32_t imm_as_uint32;
+        };
+        
         // std::stoi will ignore the eventual unsigned qualifier 'U'
-        int imm = std::stoi(value, 0, 16);
+        imm = std::stoi(value, 0, 16);
         
         if (value.back() == 'u' || value.back() == 'U')
             return (uint32_t) imm;
         
-        return *((uint32_t*) & imm);
+        return imm_as_uint32;
     }
     
     //! Parse an immediate string as a decimal value.
     static uint32_t assembler_parse_immediate_d(std::string const& value)
     {
+        union {
+            int imm;
+            uint32_t imm_as_uint32;
+        };
+        
         // std::stoi will ignore the eventual unsigned qualifier 'U'
-        int imm = std::stoi(value, 0, 10);
+        imm = std::stoi(value, 0, 10);
         
         if (value.back() == 'u' || value.back() == 'U')
             return (uint32_t) imm;
         
-        return *((uint32_t*) & imm);
+        return imm_as_uint32;
     }
     
     //! Parse an immediate value string and get its uint32_t representation.
@@ -678,4 +693,4 @@ namespace as
         
         return ass.mod;
     }
-}
+} }

@@ -46,7 +46,7 @@ static void puts(int* str)
 static int getc()
 { return std::cin.get(); }
 
-namespace run
+namespace bolt { namespace run
 {
     void runtime_expose(as::linker& ln)
     {
@@ -62,4 +62,4 @@ namespace run
         
         #undef EXPOSE
     }
-}
+} }

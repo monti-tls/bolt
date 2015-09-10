@@ -22,7 +22,7 @@
 
 #include <iostream>
 
-namespace as
+namespace bolt { namespace as
 {
     /**************************************/
     /*** Private implementation section ***/
@@ -466,4 +466,4 @@ namespace as
         
         return ln.vco;
     }
-}
+} }

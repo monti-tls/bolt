@@ -33,7 +33,7 @@
 //! It is the ouput of as_assembler, and input of as_linker.
 //! It mainly defines helper functions to manipulate the tables.
 
-namespace as
+namespace bolt { namespace as
 {
     //! An exported symbol, a name mapped to
     //!   a location in this module's own segment.
@@ -151,6 +151,6 @@ namespace as
     
     //! Add a word to the module's segment buffer, returning its offset in the buffer.
     uint32_t module_add_word(module& mod, uint32_t word);
-}
+} }
 
 #endif // BOLT_AS_MODULE_H

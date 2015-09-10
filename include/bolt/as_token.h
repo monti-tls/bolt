@@ -27,7 +27,7 @@
 
 //! This header file defines token values for as_lexer.
 
-namespace as
+namespace bolt { namespace as
 {
     enum : uint32_t
     {
@@ -60,6 +60,6 @@ namespace as
         std::string value;
         token_info info;
     };
-}
+} }
 
 #endif // BOLT_AS_TOKEN_H

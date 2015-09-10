@@ -20,7 +20,7 @@
 #include "bolt/vm_bytes.h"
 #include "bolt/vm_core.h"
 
-namespace as
+namespace bolt { namespace as
 {
     /**************************************/
     /*** Private implementation section ***/
@@ -110,4 +110,4 @@ namespace as
         
         return 0;
     }
-}
+} }

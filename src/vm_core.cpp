@@ -21,11 +21,34 @@
 #include <iostream>
 #include <iomanip>
 
-namespace vm
+namespace bolt { namespace vm
 {
     /**************************************/
     /*** Private implementation section ***/
     /**************************************/
+    
+    //! Dump an hex value to a text stream.
+    //! If print_casts == true, it also dumps the value as decimal signed integer and 
+    //!   floating numerics.
+    void core_dump_value(std::ostream& os, uint32_t value, bool print_casts)
+    {
+        os << std::hex << std::setw(8) << std::setfill('0');
+        os << value;
+        os << std::dec;
+        
+        if (print_casts)
+        {
+            union {
+                uint32_t as_uint32;
+                int32_t as_int32;
+                float as_float;
+            };
+            as_uint32 = value;
+            
+            os << " (I " << as_int32 << ")";
+            os << " (F " << as_float << ")";
+        }
+    }
     
     //! Fetch a word from the module's program memory.
     static uint32_t* fetch_word(core& vco)
@@ -176,57 +199,19 @@ namespace vm
                 break;
                 
             case I_CODE_DMS:
-                std::cout << "Stack dump :" << std::endl;
-                if (vco.registers[REG_CODE_SP] >= vco.stack_size + vco.heap_size)
-                {
-                    std::cout << "<corrupted SP>" << std::endl;
-                    break;
-                }
-                for (uint32_t i = 0; i < vco.registers[REG_CODE_SP]; ++i)
-                {
-                    std::cout << "[" << std::hex << std::setw(8) << std::setfill('0') << i << "] ";
-                    std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << vco.stack[i];
-                    std::cout << " (I " << std::dec << *((int32_t*) &vco.stack[i]) << ")";
-                    std::cout << " (F " << *((float*) &vco.stack[i]) << ")" << std::endl;
-                }
-                std::cout << "------------" << std::endl;
+                core_stack_dump(vco);
                 break;
                 
             case I_CODE_DMR:
-                std::cout << "Register dump :" << std::endl;
-                for (uint32_t i = REG_CODE_R0; i <= REG_CODE_R9; ++i)
-                {
-                    std::cout << "R" << i - REG_CODE_R0 << ":  ";
-                    std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[i];
-                    std::cout << " (I " << std::dec << *((int32_t*) &vco.registers[i]) << ")";
-                    std::cout << " (F " << *((float*) &vco.registers[i]) << ")" << std::endl;
-                }
-                std::cout << "PC:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_PC] << std::endl;
-                std::cout << "SEG: 0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_SEG] << std::endl;
-                std::cout << "SP:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_SP] << std::endl;
-                std::cout << "PSR: 0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_PSR];
-                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_HALT)
-                    std::cout << " HALT";
-                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_N)
-                    std::cout << " N";
-                if (vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
-                    std::cout << " Z";
-                std::cout << std::endl;
-                std::cout << "RV:  ";
-                std::cout << "0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_RV];
-                std::cout << " (I " << std::dec << *((int32_t*) &vco.registers[REG_CODE_RV]) << ")";
-                std::cout << " (F " << *((float*) &vco.registers[REG_CODE_RV]) << ")" << std::endl;
-                std::cout << "AB:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_AB] << std::endl;
-                std::cout << "HB:  0x" << std::hex << std::setw(8) << std::setfill('0') << vco.registers[REG_CODE_HB] << std::endl;
-                std::cout << "---------------" << std::endl;
+                core_register_dump(vco);
                 break;
                 
             case I_CODE_DMO:
             {
                 uint32_t* a = decode_A(vco);
-                std::cout << std::hex << std::setw(8) << std::setfill('0') << *a;
-                std::cout << " (I " << std::dec << *((int32_t*) a) << ")";
-                std::cout << " (F " << *((float*) a) << ")" << std::endl;
+                if (!a)
+                    throw std::logic_error("vm::execute_sys: DMO expects an operand");
+                core_dump_value(std::cout, *a, true);
                 break;
             }
                 
@@ -301,9 +286,9 @@ namespace vm
                     seg = *b;
                 
                 if (seg >= vco.segments_size)
-                    throw std::logic_error("vm::execute_mem: bad segment in LOAD");
+                    throw std::logic_error("vm::execute_mem: bad segment in CST");
                 if (addr >= vco.segments[seg]->size)
-                    throw std::logic_error("vm::execute_mem: bad program address in LOAD");
+                    throw std::logic_error("vm::execute_mem: bad program address in CST");
                 
                 stack_push(vco, vco.segments[seg]->buffer[addr]);
                 break;
@@ -467,19 +452,27 @@ namespace vm
     //! Execute an instruction from the ARITH group.
     static void execute_arith(core& vco, uint32_t icode)
     {
-        //! Unsigned integer operands.
-        uint32_t u_rhs = stack_pop(vco);
-        uint32_t u_lhs = stack_pop(vco);
+        //! We use unions here to avoid warning about type-punned pointers.
+        union {
+            uint32_t u_rhs;
+            int32_t i_rhs;
+            float f_rhs;
+        };
         
-        //! Just in case, we cast here operands to signed integers.
-        int32_t i_rhs = *((int32_t*) &u_rhs);
-        int32_t i_lhs = *((int32_t*) &u_lhs);
-        int32_t i_ret;
+        union {
+            uint32_t u_lhs;
+            int32_t i_lhs;
+            float f_lhs;
+        };
         
-        //! Same for floating-point values.
-        float f_rhs = *((float*) &u_rhs);
-        float f_lhs = *((float*) &u_lhs);
-        float f_ret;
+        union {
+            uint32_t u_ret;
+            int32_t i_ret;
+            float f_ret;
+        };
+        
+        u_rhs = stack_pop(vco);
+        u_lhs = stack_pop(vco);
         
         switch (icode)
         {
@@ -520,22 +513,22 @@ namespace vm
                 
             case I_CODE_IADD:
                 i_ret = i_lhs + i_rhs;
-                stack_push(vco, *((uint32_t*) &i_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_ISUB:
                 i_ret = i_lhs - i_rhs;
-                stack_push(vco, *((uint32_t*) &i_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_IMUL:
                 i_ret = i_lhs * i_rhs;
-                stack_push(vco, *((uint32_t*) &i_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_IDIV:
                 i_ret = i_lhs / i_rhs;
-                stack_push(vco, *((uint32_t*) &i_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_ICMP:
@@ -547,22 +540,22 @@ namespace vm
                 
             case I_CODE_FADD:
                 f_ret = f_lhs + f_rhs;
-                stack_push(vco, *((uint32_t*) &f_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_FSUB:
                 f_ret = f_lhs - f_rhs;
-                stack_push(vco, *((uint32_t*) &f_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_FMUL:
                 f_ret = f_lhs * f_rhs;
-                stack_push(vco, *((uint32_t*) &f_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_FDIV:
                 f_ret = f_lhs / f_rhs;
-                stack_push(vco, *((uint32_t*) &f_ret));
+                stack_push(vco, u_ret);
                 break;
                 
             case I_CODE_FCMP:
@@ -691,4 +684,69 @@ namespace vm
         
         vco.registers[REG_CODE_PSR] |= PSR_FLAG_HALT;
     }
-}
+    
+    void core_register_dump(core& vco, std::ostream& os)
+    {
+        os << "--- Register dump ---" << std::endl;
+        
+        for (uint32_t i = REG_CODE_R0; i <= REG_CODE_R9; ++i)
+        {
+            os << "R" << i - REG_CODE_R0 << ":  ";
+            core_dump_value(os, vco.registers[i], true);
+            os << std::endl;
+        }
+        
+        os << "PC:  ";
+        core_dump_value(os, vco.registers[REG_CODE_PC], false);
+        os << std::endl;
+        
+        os << "SEG: ";
+        core_dump_value(os, vco.registers[REG_CODE_SEG], false);
+        os << std::endl;
+        
+        os << "SP:  ";
+        core_dump_value(os, vco.registers[REG_CODE_SP], false);
+        os << std::endl;
+        
+        os << "PSR: ";
+        core_dump_value(os, vco.registers[REG_CODE_PSR], false);
+        if (vco.registers[REG_CODE_PSR] & PSR_FLAG_HALT)
+            os << " HALT";
+        if (vco.registers[REG_CODE_PSR] & PSR_FLAG_N)
+            os << " N";
+        if (vco.registers[REG_CODE_PSR] & PSR_FLAG_Z)
+            os << " Z";
+        os << std::endl;
+        
+        os << "RV:  ";
+        core_dump_value(os, vco.registers[REG_CODE_RV], true);
+        os << std::endl;
+        
+        os << "AB:  ";
+        core_dump_value(os, vco.registers[REG_CODE_AB], false);
+        os << std::endl;
+        
+        os << "HB:  ";
+        core_dump_value(os, vco.registers[REG_CODE_HB], false);
+        os << std::endl;
+        
+        os << "---------------------" << std::endl;
+    }
+    
+    void core_stack_dump(core& vco, std::ostream& os)
+    {
+        os << "---- Stack dump ----" << std::endl;
+        if (vco.registers[REG_CODE_SP] >= vco.stack_size)
+            os << "** Corrupted SP **" << std::endl;
+        else
+        {
+            for (int i = (int) vco.registers[REG_CODE_SP]; i >= 0 ; --i)
+            {
+                os << "-" << std::hex << std::setw(8) << std::setfill('0') << (vco.registers[REG_CODE_SP] - i) << ": ";
+                core_dump_value(os, vco.stack[i], true);
+                os << std::endl;
+            }
+        }
+        os << "--------------------" << std::endl;
+    }
+} }

@@ -1,4 +1,4 @@
-# This file is part of libconf.
+# This file is part of bolt.
 #
 # Copyright (c) 2015, Alexandre Monti
 #
