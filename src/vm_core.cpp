@@ -312,8 +312,9 @@ namespace bolt { namespace vm
             //! Here is the calling convention's ABI.
             //! The caller is responsible for pushing the arguments
             //!   on the stack before CALLing.
-            //! They must be pushed left to right.
-            //! They can be accessed by a [AB+#imm] operand.
+            //! They must be pushed right to left.
+            //! For example (if arguments are 1-word wide), the n-th argument is accessed with
+            //!   [%ab-n] (n is zero-based)
             //! The caller is responsible for cleaning up the stack after the callee
             //!   has returned.
             //! The return value can be written in the special register RV.
@@ -322,12 +323,12 @@ namespace bolt { namespace vm
             //! Stack frame when calling :
             //!
             //! +--------+
-            //! |  ARG0  |
+            //! |  ARGn  |
             //! +--------+
             //! |  ....  |
             //! +--------+
-            //! |  ARGn  |
-            //! +--------+
+            //! |  ARG0  |
+            //! +--------+ <-- %ab
             //! | R0-R9  |
             //! +--------+
             //! |  AB    |

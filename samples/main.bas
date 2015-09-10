@@ -94,11 +94,14 @@ main:
     dive puts
     pop
     
-again:
-    dive getc
-    push %rv
-    dive putc
+    push #f10
+    push #f50
+    dive atan2
     pop
-    ;jmp again
+    pop
+    
+    push %rv
+    dive putf
+    pop
     
     halt
