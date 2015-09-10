@@ -359,12 +359,12 @@ namespace bolt { namespace as
         lexer_init(lex);
     }
     
-    token const& lexer_seek(lexer& lex)
+    token const& lexer_peek(lexer& lex)
     {
         return lex.next_token;
     }
     
-    uint32_t lexer_seekt(lexer& lex)
+    uint32_t lexer_peekt(lexer& lex)
     {
         return lex.next_token.type;
     }

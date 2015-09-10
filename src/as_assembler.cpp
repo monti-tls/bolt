@@ -82,8 +82,8 @@ namespace bolt { namespace as
     //!   if mismatch.
     static void assembler_expect(assembler& ass, uint32_t type, std::string const& what)
     {
-        if (lexer_seekt(ass.lex) != type)
-            assembler_parse_error(lexer_seek(ass.lex), what);
+        if (lexer_peekt(ass.lex) != type)
+            assembler_parse_error(lexer_peek(ass.lex), what);
     }
     
     //! Set up temporary things for the assembler,
@@ -268,7 +268,7 @@ namespace bolt { namespace as
         }
         else if (directive == "data")
         {
-            while (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+            while (lexer_peekt(ass.lex) != TOKEN_NEWLINE)
             {
                 token tok = lexer_get(ass.lex);
                 
@@ -288,7 +288,7 @@ namespace bolt { namespace as
                 else
                     assembler_parse_error(tok, ".data directive expect either immediate operands or strings");
                 
-                if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+                if (lexer_peekt(ass.lex) != TOKEN_NEWLINE)
                 {
                     assembler_expect(ass, TOKEN_COMMA, "`,' expected");
                     lexer_get(ass.lex);
@@ -386,7 +386,7 @@ namespace bolt { namespace as
         op.off = false;
         
         // Check for indirection modifier
-        if (lexer_seekt(ass.lex) == TOKEN_LEFT_BRACKET)
+        if (lexer_peekt(ass.lex) == TOKEN_LEFT_BRACKET)
         {
             lexer_get(ass.lex);
             op.ind = true;
@@ -452,7 +452,7 @@ namespace bolt { namespace as
         
         // Check for immediate offset modifier
         uint32_t offset;
-        if (lexer_seekt(ass.lex) == TOKEN_OFFSET)
+        if (lexer_peekt(ass.lex) == TOKEN_OFFSET)
         {
             tok = lexer_get(ass.lex);
             
@@ -498,8 +498,8 @@ namespace bolt { namespace as
         if (instr->iflags & I_FLAG_LONG)
         {
             // We need to worry only if the operand is an extern symbol
-            if (lexer_seekt(ass.lex) == TOKEN_IDENTIFIER &&
-                assembler_find_extern(ass, lexer_seek(ass.lex).value))
+            if (lexer_peekt(ass.lex) == TOKEN_IDENTIFIER &&
+                assembler_find_extern(ass, lexer_peek(ass.lex).value))
             {
                 token tok = lexer_get(ass.lex);
                 
@@ -526,7 +526,7 @@ namespace bolt { namespace as
         if (instr->iflags & I_FLAG_HATCH)
         {
             // Continue only if the instructio operand is an identifier
-            if (lexer_seekt(ass.lex) == TOKEN_IDENTIFIER)
+            if (lexer_peekt(ass.lex) == TOKEN_IDENTIFIER)
             {
                 token tok = lexer_get(ass.lex);
                 
@@ -552,12 +552,12 @@ namespace bolt { namespace as
         bool hasB = false;
         assembler_operand a, b;
         
-        if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+        if (lexer_peekt(ass.lex) != TOKEN_NEWLINE)
         {
             hasA = true;
             a = assembler_parse_operand(ass, instr->aflags);
             
-            if (lexer_seekt(ass.lex) != TOKEN_NEWLINE)
+            if (lexer_peekt(ass.lex) != TOKEN_NEWLINE)
             {
                 assembler_expect(ass, TOKEN_COMMA, "`,' expected");
                 lexer_get(ass.lex);
@@ -597,18 +597,18 @@ namespace bolt { namespace as
     //! Skip new lines.
     static void assembler_skip(assembler& ass)
     {
-        while (lexer_seekt(ass.lex) == TOKEN_NEWLINE)
+        while (lexer_peekt(ass.lex) == TOKEN_NEWLINE)
             lexer_get(ass.lex);
     }
     
     //! Parse the test assembly file.
     static void assembler_parse(assembler& ass)
     {
-        while (lexer_seekt(ass.lex) != TOKEN_EOF)
+        while (lexer_peekt(ass.lex) != TOKEN_EOF)
         {
             assembler_skip(ass);
             
-            switch (lexer_seekt(ass.lex))
+            switch (lexer_peekt(ass.lex))
             {
                 case TOKEN_DIRECTIVE:
                     assembler_parse_directive(ass);
@@ -623,7 +623,7 @@ namespace bolt { namespace as
                     break;
                 
                 default:
-                    assembler_parse_error(lexer_seek(ass.lex), "bad token");
+                    assembler_parse_error(lexer_peek(ass.lex), "bad token");
             }
             
             assembler_skip(ass);

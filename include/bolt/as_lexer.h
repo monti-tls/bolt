@@ -70,11 +70,11 @@ namespace bolt { namespace as
     //! Reset a lexer to the beginning of the stream.
     void lexer_reset(lexer& lex);
     
-    //! Seek for the next token to be extracted.
-    token const& lexer_seek(lexer& lex);
+    //! Peek for the next token to be extracted.
+    token const& lexer_peek(lexer& lex);
     
-    //! Seek for the type of the next token to be extracted.
-    uint32_t lexer_seekt(lexer& lex);
+    //! Peek for the type of the next token to be extracted.
+    uint32_t lexer_peekt(lexer& lex);
     
     //! Extract the next token from the input stream.
     token lexer_get(lexer& lex);
