@@ -19,7 +19,7 @@ The processor architecture is inspired with Cortex-M cores, and uses registers f
 
 ## Sample code
 
-Here is a sample code to compute the absolute value of a number with a Newton approximation :
+Here is a sample code to compute the absolute value of a number :
 
 ```asm
 .global fabs
@@ -37,6 +37,58 @@ fabs-l1:
     ret
 fabs-l2:
     mov %rv, [%ab]
+    ret
+```
+
+Here is another example comuting the suare root of a number using the Babylonian method :
+
+```asm
+fsqrt:
+    push [%ab]           ; float yn = x
+    push #f0             ; float y = 0.0f
+    mov %r0, %sp         ; (locals setup)
+    
+    push [%ab]           ; x
+    push #f0             ; < 0.0f
+    fcmp
+    jl fsqrt-l1          ; if {}
+    jmp fsqrt-l2
+fsqrt-l1:
+    mov %rv, #f0         ; return 0.0f
+    jmp fsqrt-cleanup    ; (return handler)
+    
+fsqrt-l2:
+
+fsqrt-l3:
+    mov [%r0-1], [%r0-2] ; y = yn
+    
+    push #f0.5           ; yn = 0.05f * (y + x/y)
+    push [%r0-1]
+    push [%ab]
+    push [%r0-1]
+    fdiv
+    fadd
+    fmul
+    pop [%r0-2]
+    
+    push [%r0-2]         ; fabsf(yn - y)
+    push [%r0-1]
+    fsub
+    call fabs
+    pop
+    push %rv
+    
+    push #f0.001         ; > EPSILON
+    fcmp
+    
+    jg fsqrt-l3          ; do {} while
+    
+    mov %rv, [%r0-1]     ; return y
+    jmp fsqrt-cleanup    ; (return handler)
+    
+fsqrt-cleanup:
+    pop                  ; (locals clean)
+    pop
     ret
 ```
 

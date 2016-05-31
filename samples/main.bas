@@ -71,6 +71,17 @@ cststr-cleanup:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    
 .extern myputs
+
+ double:
+   push #2
+   push [%ab]
+   push #1
+   iadd
+   imul
+   push #2
+   isub
+   pop %rv
+   ret
     
 .entry init
 str:
@@ -83,11 +94,44 @@ init:
     call cststr
     pop
     pop
+
+    push #8
+    call double
+    dmo %rv
     
     ; go to user main
     jmp main
     
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+factorial:
+factorial-prelude:
+    push #1 ; r ~ [%r0-1]
+    mov %r0, %sp
+factorial-while0-cond:
+    push [%ab] ; n > 1
+    push #1
+    icmp
+    jg factorial-while0-body
+    jmp factorial-while0-end
+factorial-while0-body:
+    push [%r0-1] ; r = r * n
+    push [%ab]
+    imul
+    pop [%r0-1]
+    push [%ab] ; n = n - 1
+    push #1
+    isub
+    pop [%ab]
+    jmp factorial-while0-cond
+factorial-while0-end:
+
+    mov %rv, [%r0-1]
+    jmp factorial-cleanup
+
+factorial-cleanup:
+    pop
+    ret
 
 main:
     push %hb
@@ -103,5 +147,9 @@ main:
     push %rv
     dive putf
     pop
+
+    push #6
+    call factorial
+    dmo %rv
     
     halt
